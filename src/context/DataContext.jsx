@@ -44,8 +44,8 @@ export function DataProvider({ children }) {
       if (!error) {
         setFeed(data.map(post => ({
           id: post.id,
-          user: post.profiles?.full_name || 'Explorer',
-          avatar: post.profiles?.avatar_url || 'E',
+          user: post.profiles?.full_name || 'Network HQ',
+          avatar: post.profiles?.avatar_url || 'HQ',
           text: post.text,
           image: post.image_url,
           flair: post.flair,
@@ -129,6 +129,42 @@ export function DataProvider({ children }) {
       text: comment.text
     })
   }
+
+  // Fetch Missions
+  useEffect(() => {
+    async function fetchMissions() {
+      const { data, error } = await insforge.database
+        .from('missions')
+        .select('*')
+        .order('timestamp', { ascending: false })
+      
+      if (!error) {
+        setMissions(data.map(m => ({
+          id: m.id,
+          title: m.title,
+          type: m.type || 'Field Test',
+          destination: m.cities || 'Global',
+          city: m.cities || 'Various',
+          countries: m.cities ? [m.cities] : ['Global'],
+          description: m.description,
+          duration: 'Various',
+          startDate: 'TBD',
+          endDate: 'TBD',
+          image: m.image_url || 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=800',
+          support: ['Logistics', 'Funded'],
+          requirements: ['Verified Explorer'],
+          spots: m.spots_left || 5,
+          maxParticipants: (m.spots_left || 5) + 2,
+          participants: [],
+          interested: [],
+          leader: 'Network HQ',
+          leaderId: 'hq',
+          leaderAvatar: 'HQ'
+        })))
+      }
+    }
+    fetchMissions()
+  }, [])
 
   return (
     <DataContext.Provider value={{ 

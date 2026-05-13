@@ -69,7 +69,7 @@ export default function Profile() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 8, flexWrap: 'wrap' }}>
                 <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12 }}>
                   <div>
-                    <h1 style={{ fontSize: '1.8rem' }}>{user.full_name || 'Explorer'}</h1>
+                    <h1 style={{ fontSize: '1.8rem' }}>{user.full_name || user.user_metadata?.full_name || user.user_metadata?.name || 'Explorer'}</h1>
                     {user.username && <div style={{ color: 'var(--accent-gold)', fontWeight: 600, fontSize: '0.9rem' }}>@{user.username}</div>}
                   </div>
                   <span className="badge badge-gold">{user.level_title}</span>
