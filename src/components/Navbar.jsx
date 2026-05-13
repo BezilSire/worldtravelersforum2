@@ -33,7 +33,7 @@ export default function Navbar() {
       <nav className="nav" id="main-nav">
         <div className="nav-inner">
           <Link to="/" className="nav-logo" style={{ display: 'flex', alignItems: 'center' }}>
-            <Logo style={{ height: '36px', width: 'auto' }} />
+            <Logo style={{ height: '48px', width: 'auto' }} />
           </Link>
 
           <div className="nav-links">
