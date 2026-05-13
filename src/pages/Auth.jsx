@@ -9,22 +9,36 @@ export default function Auth() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
-  const { login, signup } = useAuth()
+  const [msg, setMsg] = useState('')
+  const { login, signup, loginWithGoogle } = useAuth()
   const navigate = useNavigate()
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
+    setMsg('')
     if (mode === 'signup') {
       if (!name || !email || !password) return setError('All fields required')
-      const res = signup(name, email, password)
-      if (res.success) navigate('/profile')
+      const res = await signup(name, email, password)
+      if (res.success) {
+        if (res.data?.requireEmailVerification) {
+          setMsg('Please check your email for the verification code.')
+        } else {
+          navigate('/profile')
+        }
+      } else {
+        setError(res.error?.message || 'Sign up failed')
+      }
     } else {
       if (!email || !password) return setError('Email and password required')
-      const res = login(email, password)
+      const res = await login(email, password)
       if (res.success) navigate('/profile')
-      else setError('Invalid credentials')
+      else setError(res.error?.message || 'Invalid credentials')
     }
+  }
+
+  const handleGoogleLogin = async () => {
+    await loginWithGoogle()
   }
 
   return (
@@ -62,9 +76,26 @@ export default function Auth() {
             </div>
 
             {error && <div style={{ color: '#f87171', fontSize: '0.85rem' }}>{error}</div>}
+            {msg && <div style={{ color: '#E2CA3D', fontSize: '0.85rem' }}>{msg}</div>}
 
             <button type="submit" className="btn-primary" style={{ width: '100%', justifyContent: 'center' }}>
               {mode === 'login' ? 'Sign In' : 'Join the Network — Free'} <ArrowRight size={16} />
+            </button>
+            
+            <div style={{ display: 'flex', alignItems: 'center', margin: '10px 0' }}>
+              <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.1)' }}></div>
+              <span style={{ padding: '0 10px', color: 'rgba(255,255,255,0.4)', fontSize: '0.85rem' }}>OR</span>
+              <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.1)' }}></div>
+            </div>
+
+            <button type="button" onClick={handleGoogleLogin} className="btn-secondary" style={{ width: '100%', justifyContent: 'center', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}>
+              <svg style={{width: 18, height: 18, marginRight: 8}} viewBox="0 0 24 24">
+                <path fill="#EA4335" d="M5.266 9.765A7.077 7.077 0 0112 4.909c1.69 0 3.218.6 4.418 1.582L19.91 3C17.782 1.145 15.055 0 12 0 7.27 0 3.198 2.698 1.24 6.65l4.026 3.115z" />
+                <path fill="#34A853" d="M16.04 18.013c-1.09.703-2.474 1.078-4.04 1.078a7.077 7.077 0 01-6.723-4.823l-4.04 3.067A11.965 11.965 0 0012 24c2.933 0 5.735-1.043 7.839-2.865l-3.8-3.122z" />
+                <path fill="#4A90E2" d="M19.839 21.135C21.95 19.28 23.277 16.369 23.277 12.61c0-.82-.074-1.636-.217-2.433H12v4.608h6.436c-.273 1.558-1.115 2.87-2.397 3.75l3.8 3.122z" />
+                <path fill="#FBBC05" d="M5.277 14.268A7.12 7.12 0 014.909 12c0-.782.125-1.533.357-2.235L1.24 6.65A11.934 11.934 0 000 12c0 1.92.445 3.73 1.237 5.335l4.04-3.067z" />
+              </svg>
+              Continue with Google
             </button>
           </div>
         </form>
@@ -75,10 +106,6 @@ export default function Auth() {
             style={{ color: 'var(--accent-gold)', textDecoration: 'underline', fontSize: '0.9rem' }}>
             {mode === 'login' ? 'Join the Network' : 'Sign In'}
           </button>
-        </p>
-
-        <p style={{ textAlign: 'center', marginTop: 16, color: 'var(--text-muted)', fontSize: '0.8rem' }}>
-          Demo: tariro@example.com / explorer123
         </p>
       </div>
     </div>
