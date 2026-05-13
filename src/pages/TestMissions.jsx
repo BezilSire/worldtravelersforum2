@@ -18,11 +18,11 @@ export default function TestMissions() {
       missionId: selectedMission.id,
       missionTitle: selectedMission.title,
       userId: user.id,
-      userName: user.name,
-      userAvatar: user.avatar,
+      userName: user.full_name,
+      userAvatar: user.avatar_url || user.full_name?.charAt(0).toUpperCase(),
       motivation,
-      participationScore: user.xp ? Math.min(100, Math.floor(user.xp / 10)) : 85, // Mock score
-      verifiedStays: user.staysCount || 5
+      participationScore: user.xp ? Math.min(100, Math.floor(user.xp / 10)) : 85,
+      verifiedStays: user.stays_count || 0
     })
     setApplied(true)
     setTimeout(() => {
@@ -50,6 +50,25 @@ export default function TestMissions() {
           <p style={{ color: 'var(--text-secondary)', fontSize: '1.1rem', lineHeight: 1.6 }}>
             Coordinated field missions for trusted explorers. Test new hotels, document local experiences, and help build the future of <a href="https://cheaply.world" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent-teal)', textDecoration: 'none', fontWeight: 600 }}>cheaply.world</a>. This is real-world exploration, not influencer marketing.
           </p>
+        </div>
+
+        {/* Explanation Section */}
+        <div className="grid-3 animate-fade-up animate-delay-1" style={{ marginBottom: 60 }}>
+          <div className="glass-card" style={{ padding: 24 }}>
+            <div style={{ color: 'var(--accent-gold)', marginBottom: 16 }}><Shield size={24} /></div>
+            <h3 style={{ fontSize: '1.1rem', marginBottom: 12 }}>Trusted Selection</h3>
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>Missions are only open to verified explorers with established reputations. We look for detail-oriented travelers who can provide honest, high-quality field reports.</p>
+          </div>
+          <div className="glass-card" style={{ padding: 24 }}>
+            <div style={{ color: 'var(--accent-teal)', marginBottom: 16 }}><ClipboardList size={24} /></div>
+            <h3 style={{ fontSize: '1.1rem', marginBottom: 12 }}>Field Documentation</h3>
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>Participants document hotel stays, local logistics, and unique experiences. This data helps the network coordinate better trips for the entire community.</p>
+          </div>
+          <div className="glass-card" style={{ padding: 24 }}>
+            <div style={{ color: 'var(--accent-gold)', marginBottom: 16 }}><Trophy size={24} /></div>
+            <h3 style={{ fontSize: '1.1rem', marginBottom: 12 }}>Network Support</h3>
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>The Explorer Fund subsidizes mission costs. In exchange, your reports become valuable assets for the forum, helping others move more effectively.</p>
+          </div>
         </div>
 
         {/* Dashboard for Approved Participants */}
@@ -165,8 +184,8 @@ export default function TestMissions() {
                     <tr key={app.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
                       <td style={{ padding: '16px 24px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                          <div style={{ width: 32, height: 32, borderRadius: 8, background: 'var(--bg-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600, fontSize: '0.8rem' }}>
-                            {app.userAvatar}
+                          <div style={{ width: 32, height: 32, borderRadius: 8, background: 'var(--bg-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600, fontSize: '0.8rem', overflow: 'hidden' }}>
+                            {app.userAvatar?.length === 1 ? app.userAvatar : <img src={app.userAvatar} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
                           </div>
                           <span style={{ fontSize: '0.9rem', fontWeight: 500 }}>{app.userName}</span>
                         </div>
@@ -235,7 +254,7 @@ export default function TestMissions() {
                       required
                     />
                     <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 8 }}>
-                      Your explorer score ({user?.xp ? Math.min(100, Math.floor(user.xp / 10)) : 85}) and verified stays ({user?.staysCount || 5}) will be automatically included in your application.
+                      Your explorer score ({user?.xp ? Math.min(100, Math.floor(user.xp / 10)) : 85}) and verified stays ({user?.stays_count || 0}) will be automatically included in your application.
                     </p>
                   </div>
                   

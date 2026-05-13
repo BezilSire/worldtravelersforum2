@@ -5,17 +5,21 @@ import { MapPin, Globe, Shield, Star, Calendar, ArrowRight, Compass, CheckCircle
 import { useState, useRef } from 'react'
 
 export default function Profile() {
-  const { user, updateUser } = useAuth()
+  const { user, updateUser, checkUsername } = useAuth()
   const { stays, importPastHistory, reportUser } = useData()
   const [showImport, setShowImport] = useState(false)
   const [showEdit, setShowEdit] = useState(false)
   const [importForm, setImportForm] = useState({ countriesCount: 0, staysCount: 0 })
   const [editForm, setEditForm] = useState({ 
+    full_name: user?.full_name || '',
+    username: user?.username || '',
     bio: user?.bio || '', 
     tiktok: user?.socials?.tiktok || '', 
     youtube: user?.socials?.youtube || '', 
     instagram: user?.socials?.instagram || '' 
   })
+  const [usernameError, setUsernameError] = useState('')
+  const [saving, setSaving] = useState(false)
   const fileInputRef = useRef(null)
 
   if (!user) return <Navigate to="/auth" />
@@ -63,8 +67,11 @@ export default function Profile() {
 
             <div style={{ flex: 1, minWidth: 240 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 8, flexWrap: 'wrap' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <h1 style={{ fontSize: '1.8rem' }}>{user.full_name}</h1>
+                <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12 }}>
+                  <div>
+                    <h1 style={{ fontSize: '1.8rem' }}>{user.full_name || 'Explorer'}</h1>
+                    {user.username && <div style={{ color: 'var(--accent-gold)', fontWeight: 600, fontSize: '0.9rem' }}>@{user.username}</div>}
+                  </div>
                   <span className="badge badge-gold">{user.level_title}</span>
                 </div>
                 <button onClick={() => reportUser({ to: user.id, from: 'current_user' })} style={{ color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: 8 }} title="Report User">
@@ -206,9 +213,23 @@ export default function Profile() {
               <button onClick={() => setShowEdit(false)} style={{ color: 'var(--text-muted)' }}><X size={20} /></button>
             </div>
             
-            <form onSubmit={(e) => {
+            <form onSubmit={async (e) => {
               e.preventDefault();
-              updateUser({ 
+              setSaving(true);
+              setUsernameError('');
+
+              if (editForm.username && editForm.username !== user.username) {
+                const taken = await checkUsername(editForm.username);
+                if (taken) {
+                  setUsernameError('This username is already taken.');
+                  setSaving(false);
+                  return;
+                }
+              }
+
+              const { success, error } = await updateUser({ 
+                full_name: editForm.full_name,
+                username: editForm.username.toLowerCase(),
                 bio: editForm.bio, 
                 socials: { 
                   tiktok: editForm.tiktok, 
@@ -216,9 +237,32 @@ export default function Profile() {
                   instagram: editForm.instagram 
                 } 
               });
-              setShowEdit(false);
+
+              setSaving(false);
+              if (success) setShowEdit(false);
+              else setUsernameError(error?.message || 'Failed to update profile.');
             }} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
               
+              <div className="form-group">
+                <label className="form-label">Full Name</label>
+                <input className="form-input" value={editForm.full_name} onChange={e => setEditForm({...editForm, full_name: e.target.value})} required />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Username</label>
+                <div style={{ position: 'relative' }}>
+                  <span style={{ position: 'absolute', left: 14, top: 14, color: 'var(--text-muted)' }}>@</span>
+                  <input 
+                    className="form-input" 
+                    style={{ paddingLeft: 32 }}
+                    placeholder="explorer_name" 
+                    value={editForm.username} 
+                    onChange={e => setEditForm({...editForm, username: e.target.value.replace(/[^a-zA-Z0-0_]/g, '')})} 
+                  />
+                </div>
+                {usernameError && <p style={{ color: 'var(--accent-rose)', fontSize: '0.75rem', marginTop: 4 }}>{usernameError}</p>}
+              </div>
+
               <div className="form-group">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                   <label className="form-label" style={{ marginBottom: 0 }}>Bio</label>
@@ -252,8 +296,8 @@ export default function Profile() {
                 </div>
               </div>
 
-              <button type="submit" className="btn-primary" style={{ width: '100%', justifyContent: 'center', marginTop: 12 }}>
-                Save Profile Changes
+              <button type="submit" className="btn-primary" disabled={saving} style={{ width: '100%', justifyContent: 'center', marginTop: 12 }}>
+                {saving ? 'Saving...' : 'Save Profile Changes'}
               </button>
             </form>
           </div>

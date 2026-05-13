@@ -16,11 +16,23 @@ export function AuthProvider({ children }) {
       
       if (authData?.user) {
         // Fetch profile
-        const { data: profile } = await insforge.database
+        let { data: profile } = await insforge.database
           .from('profiles')
           .select('*')
           .eq('id', authData.user.id)
           .single()
+        
+        if (!profile) {
+          const name = authData.user.user_metadata?.full_name || authData.user.user_metadata?.name || 'Explorer'
+          const newProfile = {
+            id: authData.user.id,
+            full_name: name,
+            avatar_url: name.charAt(0).toUpperCase(),
+            joined_date: new Date().toISOString().split('T')[0]
+          }
+          await insforge.database.from('profiles').insert(newProfile)
+          profile = newProfile
+        }
         
         setUser({ ...authData.user, ...profile })
       } else {
@@ -106,8 +118,23 @@ export function AuthProvider({ children }) {
     return { success: !error, error }
   }
 
+  const checkUsername = async (username) => {
+    if (!username) return false
+    const { data } = await insforge.database
+      .from('profiles')
+      .select('id')
+      .eq('username', username.toLowerCase())
+      .maybeSingle()
+    
+    // If we find a user with this username and it's NOT the current user, it's taken
+    return data && data.id !== user?.id
+  }
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, signup, logout, updateUser, loginWithGoogle, sendResetEmail, resetPasswordWithCode }}>
+    <AuthContext.Provider value={{ 
+      user, loading, login, signup, logout, updateUser, checkUsername,
+      loginWithGoogle, sendResetEmail, resetPasswordWithCode 
+    }}>
       {children}
     </AuthContext.Provider>
   )
