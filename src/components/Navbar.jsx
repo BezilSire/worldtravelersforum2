@@ -60,7 +60,7 @@ export default function Navbar() {
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     fontSize: '0.75rem', fontWeight: 700, color: '#0a0b0f'
                   }}>
-                    {user.avatar}
+                    {user.user_metadata?.name?.charAt(0).toUpperCase() || user.email?.charAt(0).toUpperCase() || 'U'}
                   </div>
                 </Link>
                 <button onClick={handleLogout} className="nav-link" title="Logout">

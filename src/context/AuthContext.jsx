@@ -51,13 +51,26 @@ export function AuthProvider({ children }) {
     return { success: !error, error }
   }
 
+  const sendResetEmail = async (email) => {
+    return await insforge.auth.sendResetPasswordEmail({
+      email,
+      redirectTo: window.location.origin + '/reset-password'
+    })
+  }
+
+  const resetPasswordWithCode = async (email, code, newPassword) => {
+    const { data, error } = await insforge.auth.exchangeResetPasswordToken({ email, code })
+    if (error) return { error }
+    return await insforge.auth.resetPassword({ newPassword, otp: data.token })
+  }
+
   const updateUser = (updates) => {
     setUser({ ...user, user_metadata: { ...user?.user_metadata, ...updates }})
     // Ideally this would also trigger a backend update via setProfile or DB update
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, signup, logout, updateUser, loginWithGoogle }}>
+    <AuthContext.Provider value={{ user, loading, login, signup, logout, updateUser, loginWithGoogle, sendResetEmail, resetPasswordWithCode }}>
       {children}
     </AuthContext.Provider>
   )
