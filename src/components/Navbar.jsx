@@ -16,6 +16,7 @@ export default function Navbar() {
     { to: '/missions', label: 'Missions' },
     { to: '/test-missions', label: 'Test Missions' },
     { to: '/fund', label: 'Fund' },
+    { to: '/bookings', label: 'Bookings' },
   ]
 
   const isActive = (path) => location.pathname === path

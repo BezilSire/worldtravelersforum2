@@ -12,6 +12,7 @@ import Messages from './pages/Messages.jsx'
 import ExplorerProfile from './pages/ExplorerProfile.jsx'
 import DestinationDiscussion from './pages/DestinationDiscussion.jsx'
 import TestMissions from './pages/TestMissions.jsx'
+import Bookings from './pages/Bookings.jsx'
 
 export default function App() {
   return (
@@ -30,6 +31,7 @@ export default function App() {
         <Route path="/messages" element={<Messages />} />
         <Route path="/explorer/:id" element={<ExplorerProfile />} />
         <Route path="/test-missions" element={<TestMissions />} />
+        <Route path="/bookings" element={<Bookings />} />
       </Routes>
     </>
   )
