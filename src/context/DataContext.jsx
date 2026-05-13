@@ -1,12 +1,8 @@
-import { createContext, useContext, useState } from 'react'
+import { createContext, useContext, useState, useEffect } from 'react'
+import { insforge } from '../lib/insforge.js'
+import { useAuth } from './AuthContext.jsx'
 
 const DataContext = createContext(null)
-
-const INITIAL_STAYS = []
-const INITIAL_TEST_MISSIONS = []
-const INITIAL_MISSIONS = []
-const INITIAL_FEED = []
-const INITIAL_MESSAGES = []
 
 const FUND_DATA = {
   totalRevenue: 0,
@@ -22,42 +18,122 @@ const FUND_DATA = {
 }
 
 export function DataProvider({ children }) {
-  const [stays, setStays] = useState(INITIAL_STAYS)
-  const [missions, setMissions] = useState(INITIAL_MISSIONS)
-  const [feed, setFeed] = useState(INITIAL_FEED)
-  const [messages, setMessages] = useState(INITIAL_MESSAGES)
-  const [groupChats, setGroupChats] = useState([])
-  const [discussions, setDiscussions] = useState({})
-  const [testMissions, setTestMissions] = useState(INITIAL_TEST_MISSIONS)
-  const [testMissionApplications, setTestMissionApplications] = useState([])
-  const [userVouches, setUserVouches] = useState({})
+  const { user } = useAuth()
+  const [stays, setStays] = useState([])
+  const [missions, setMissions] = useState([])
+  const [feed, setFeed] = useState([])
+  const [messages, setMessages] = useState([])
   const [fund] = useState(FUND_DATA)
+  const [loading, setLoading] = useState(true)
 
-  const destinations = []
+  // Fetch Feed
+  useEffect(() => {
+    async function fetchFeed() {
+      const { data, error } = await insforge.database
+        .from('posts')
+        .select(`
+          *,
+          profiles:user_id (full_name, avatar_url),
+          comments (
+            *,
+            profiles:user_id (full_name, avatar_url)
+          )
+        `)
+        .order('timestamp', { ascending: false })
+      
+      if (!error) {
+        setFeed(data.map(post => ({
+          id: post.id,
+          user: post.profiles?.full_name || 'Explorer',
+          avatar: post.profiles?.avatar_url || 'E',
+          text: post.text,
+          image: post.image_url,
+          flair: post.flair,
+          likes: post.likes_count,
+          timestamp: post.timestamp,
+          comments: post.comments?.map(c => ({
+            id: c.id,
+            user: c.profiles?.full_name || 'Explorer',
+            avatar: c.profiles?.avatar_url || 'E',
+            text: c.text,
+            timestamp: c.timestamp
+          })) || []
+        })))
+      }
+    }
 
-  const submitStay = (stay) => {}
-  const likePost = (postId) => {}
-  const addComment = (postId, comment) => {}
-  const createPost = (post) => {}
-  const sendMessage = (msg) => {}
-  const sendGroupMessage = (groupId, msg) => {}
-  const importPastHistory = (history, user, updateUser) => {}
-  const createMission = (mission) => {}
-  const joinMission = (missionId, userId, userName, userAvatar) => {}
-  const vouchUser = (vouchData) => {}
-  const reportUser = (reportData) => {}
-  const postToDiscussion = (countryId, post) => {}
-  const startDiscussion = (countryName) => {}
-  const applyToTestMission = (application) => {}
-  const updateTestMissionApplicationStatus = (appId, status) => {}
-  const submitTestMissionReport = (report) => {}
+    fetchFeed()
+  }, [])
+
+  // Fetch User Stays
+  useEffect(() => {
+    if (!user) {
+      setStays([])
+      return
+    }
+
+    async function fetchStays() {
+      const { data, error } = await insforge.database
+        .from('stays')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('timestamp', { ascending: false })
+      
+      if (!error) setStays(data)
+    }
+
+    fetchStays()
+  }, [user])
+
+  const submitStay = async (stayData) => {
+    if (!user) return
+    const { error } = await insforge.database.from('stays').insert({
+      user_id: user.id,
+      hotel: stayData.hotel,
+      country: stayData.country,
+      booking_id: stayData.bookingId,
+      check_in: stayData.checkIn,
+      check_out: stayData.checkOut
+    })
+    if (!error) {
+      // Refresh stays
+      const { data } = await insforge.database.from('stays').select('*').eq('user_id', user.id)
+      setStays(data)
+    }
+  }
+
+  const createPost = async (postData) => {
+    if (!user) return
+    const { error } = await insforge.database.from('posts').insert({
+      user_id: user.id,
+      text: postData.text,
+      image_url: postData.image,
+      flair: postData.flair
+    })
+    if (!error) {
+      // In a real app we'd use realtime, for now just refetch or optimistically update
+      window.location.reload() // Quickest way to refresh the complex joined query
+    }
+  }
+
+  const likePost = async (postId) => {
+    // Basic like increment
+    await insforge.database.rpc('increment_likes', { post_id: postId })
+  }
+
+  const addComment = async (postId, comment) => {
+    if (!user) return
+    await insforge.database.from('comments').insert({
+      post_id: postId,
+      user_id: user.id,
+      text: comment.text
+    })
+  }
 
   return (
     <DataContext.Provider value={{ 
-      stays, missions, testMissions, testMissionApplications, userVouches, feed, fund, destinations, messages, groupChats, discussions,
-      submitStay, createMission, joinMission, applyToTestMission, updateTestMissionApplicationStatus, submitTestMissionReport,
-      createPost, sendMessage, sendGroupMessage, importPastHistory,
-      likePost, addComment, vouchUser, reportUser, postToDiscussion, startDiscussion
+      stays, missions, feed, fund, loading,
+      submitStay, createPost, likePost, addComment
     }}>
       {children}
     </DataContext.Provider>

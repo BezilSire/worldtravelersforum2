@@ -34,7 +34,7 @@ export default function Profile() {
   const userStays = stays.filter(s => s.userId === user.id)
   const verifiedStays = userStays.filter(s => s.verified)
   const pendingStays = userStays.filter(s => !s.verified)
-  const xpPercent = user.xpNext > 0 ? Math.min((user.xp / user.xpNext) * 100, 100) : 0
+  const xpPercent = user.xp_next > 0 ? Math.min((user.xp / user.xp_next) * 100, 100) : 0
 
   return (
     <div className="page">
@@ -49,27 +49,29 @@ export default function Profile() {
                 onClick={() => fileInputRef.current?.click()}
                 style={{ width: 100, height: 100, borderRadius: 28, background: 'var(--gradient-gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2.5rem', fontWeight: 800, color: '#0a0b0f', fontFamily: 'var(--font-display)', overflow: 'hidden', cursor: 'pointer', border: '2px solid var(--border-subtle)' }}
               >
-                {user.profileImage ? (
-                  <img src={user.profileImage} alt={user.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                ) : user.avatar}
+                {user.avatar_url?.startsWith('http') || user.avatar_url?.startsWith('data:') ? (
+                  <img src={user.avatar_url} alt={user.full_name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : (
+                  user.avatar_url || (user.full_name?.charAt(0).toUpperCase()) || 'U'
+                )}
                 <div style={{ position: 'absolute', bottom: -4, right: -4, background: 'var(--accent-gold)', width: 32, height: 32, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#000', border: '3px solid var(--bg-card)' }}>
                   <Camera size={14} />
                 </div>
               </div>
-              <input type="file" ref={fileInputRef} onChange={handleFileChange} style={{ display: 'none' }} accept="image/*" />
+              <input type="file" style={{ display: 'none' }} ref={fileInputRef} onChange={handleFileChange} accept="image/*" />
             </div>
 
             <div style={{ flex: 1, minWidth: 240 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 8, flexWrap: 'wrap' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <h1 style={{ fontSize: '1.8rem' }}>{user.name}</h1>
-                  <span className="badge badge-gold">{user.levelTitle}</span>
+                  <h1 style={{ fontSize: '1.8rem' }}>{user.full_name}</h1>
+                  <span className="badge badge-gold">{user.level_title}</span>
                 </div>
                 <button onClick={() => reportUser({ to: user.id, from: 'current_user' })} style={{ color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: 8 }} title="Report User">
                   <AlertTriangle size={20} />
                 </button>
               </div>
-              <p style={{ color: 'var(--text-secondary)', marginBottom: 16, fontSize: '0.95rem', maxWidth: 600 }}>{user.bio}</p>
+              <p style={{ color: 'var(--text-secondary)', marginBottom: 16, fontSize: '0.95rem', maxWidth: 600 }}>{user.bio || 'No bio yet. Explore the world and build your identity.'}</p>
               
               {/* Socials Display */}
               <div style={{ display: 'flex', gap: 16, marginBottom: 20 }}>
@@ -85,7 +87,7 @@ export default function Profile() {
               </div>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap', fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: 16 }}>
-                <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Calendar size={14} /> Joined {user.joinedDate}</span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Calendar size={14} /> Joined {user.joined_date}</span>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Compass size={14} /> Level {user.level}</span>
               </div>
 
@@ -102,7 +104,7 @@ export default function Profile() {
               <div style={{ marginTop: 20, maxWidth: 400 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: 6, color: 'var(--text-secondary)' }}>
                   <span>{user.xp} XP</span>
-                  <span>{user.xpNext} XP to next level</span>
+                  <span>{user.xp_next} XP to next level</span>
                 </div>
                 <div className="level-bar-track">
                   <div className="level-bar-fill" style={{ width: `${xpPercent}%` }} />
@@ -115,10 +117,10 @@ export default function Profile() {
         {/* Stats Grid */}
         <div className="grid-4 animate-fade-up animate-delay-1" style={{ marginBottom: 32 }}>
           {[
-            { icon: <Globe size={20} />, value: user.countriesCount, label: 'Countries', color: 'var(--accent-gold)' },
-            { icon: <Shield size={20} />, value: user.staysCount, label: 'Verified Stays', color: 'var(--accent-blue)' },
-            { icon: <Heart size={20} />, value: user.vouchesCount || 0, label: 'Vouches', color: 'var(--accent-rose)' },
-            { icon: <Star size={20} />, value: user.missionsCount, label: 'Missions', color: 'var(--accent-purple)' },
+            { icon: <Globe size={20} />, value: user.countries_count || 0, label: 'Countries', color: 'var(--accent-gold)' },
+            { icon: <Shield size={20} />, value: user.stays_count || 0, label: 'Verified Stays', color: 'var(--accent-blue)' },
+            { icon: <Heart size={20} />, value: user.vouches_count || 0, label: 'Vouches', color: 'var(--accent-rose)' },
+            { icon: <Star size={20} />, value: user.missions_count || 0, label: 'Missions', color: 'var(--accent-purple)' },
           ].map((s, i) => (
             <div key={i} className="stat-card">
               <div style={{ color: s.color, marginBottom: 8 }}>{s.icon}</div>

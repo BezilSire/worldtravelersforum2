@@ -54,13 +54,18 @@ export default function Navbar() {
                   Claim Stay
                 </Link>
                 <Link to="/profile" className="nav-link" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <div style={{
+                   <div style={{
                     width: 32, height: 32, borderRadius: '50%',
                     background: 'var(--gradient-gold)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: '0.75rem', fontWeight: 700, color: '#0a0b0f'
+                    fontSize: '0.75rem', fontWeight: 700, color: '#0a0b0f',
+                    overflow: 'hidden'
                   }}>
-                    {user.user_metadata?.name?.charAt(0).toUpperCase() || user.email?.charAt(0).toUpperCase() || 'U'}
+                    {user.avatar_url?.startsWith('http') || user.avatar_url?.startsWith('data:') ? (
+                      <img src={user.avatar_url} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : (
+                      user.avatar_url || user.full_name?.charAt(0).toUpperCase() || user.email?.charAt(0).toUpperCase() || 'U'
+                    )}
                   </div>
                 </Link>
                 <button onClick={handleLogout} className="nav-link" title="Logout">

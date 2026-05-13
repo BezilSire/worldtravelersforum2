@@ -44,12 +44,8 @@ function timeAgo(ts) {
   return `${Math.floor(days / 30)}mo ago`
 }
 
-function getExplorerId(name) {
-  if (name === 'Tariro Moyo') return 'usr_001'
-  if (name === 'Alex Chen') return 'usr_002'
-  if (name === 'Fatima El-Amin') return 'usr_003'
-  if (name === 'Maria Santos') return 'usr_004'
-  return 'usr_unknown'
+function getExplorerId(userId) {
+  return userId || 'usr_unknown'
 }
 
 export default function Feed() {
@@ -370,17 +366,7 @@ export default function Feed() {
               <Award size={18} color="var(--accent-teal)" /> Top Contributors
             </h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              {['Tariro Moyo', 'Alex Chen', 'Fatima El-Amin'].map((name, i) => (
-                <Link key={i} to={`/explorer/${getExplorerId(name)}`} style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--bg-elevated)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                    {name.substring(0, 2).toUpperCase()}
-                  </div>
-                  <div>
-                    <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.9rem' }}>{name}</div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Verified Explorer</div>
-                  </div>
-                </Link>
-              ))}
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Contributors will appear here as they join the network.</p>
             </div>
           </div>
           

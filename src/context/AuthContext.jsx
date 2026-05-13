@@ -11,9 +11,21 @@ export function AuthProvider({ children }) {
     let cancelled = false
 
     async function hydrateAuth() {
-      const { data, error } = await insforge.auth.getCurrentUser()
+      const { data: authData, error: authError } = await insforge.auth.getCurrentUser()
       if (cancelled) return
-      setUser(error ? null : (data?.user ?? null))
+      
+      if (authData?.user) {
+        // Fetch profile
+        const { data: profile } = await insforge.database
+          .from('profiles')
+          .select('*')
+          .eq('id', authData.user.id)
+          .single()
+        
+        setUser({ ...authData.user, ...profile })
+      } else {
+        setUser(null)
+      }
       setLoading(false)
     }
 
@@ -24,7 +36,14 @@ export function AuthProvider({ children }) {
 
   const login = async (email, password) => {
     const { data, error } = await insforge.auth.signInWithPassword({ email, password })
-    if (!error) setUser(data.user)
+    if (!error && data?.user) {
+      const { data: profile } = await insforge.database
+        .from('profiles')
+        .select('*')
+        .eq('id', data.user.id)
+        .single()
+      setUser({ ...data.user, ...profile })
+    }
     return { success: !error, error }
   }
 
@@ -32,9 +51,20 @@ export function AuthProvider({ children }) {
     const { data, error } = await insforge.auth.signUp({ 
       email, 
       password,
-      options: { data: { name } }
+      options: { data: { full_name: name } }
     })
-    if (!error && data?.user) setUser(data.user)
+    
+    if (!error && data?.user) {
+      // Create profile record
+      const profileData = {
+        id: data.user.id,
+        full_name: name,
+        avatar_url: name.charAt(0).toUpperCase(),
+        joined_date: new Date().toISOString().split('T')[0]
+      }
+      await insforge.database.from('profiles').insert(profileData)
+      setUser({ ...data.user, ...profileData })
+    }
     return { success: !error, error, data }
   }
 
@@ -64,9 +94,16 @@ export function AuthProvider({ children }) {
     return await insforge.auth.resetPassword({ newPassword, otp: data.token })
   }
 
-  const updateUser = (updates) => {
-    setUser({ ...user, user_metadata: { ...user?.user_metadata, ...updates }})
-    // Ideally this would also trigger a backend update via setProfile or DB update
+  const updateUser = async (updates) => {
+    const { error } = await insforge.database
+      .from('profiles')
+      .update(updates)
+      .eq('id', user.id)
+    
+    if (!error) {
+      setUser({ ...user, ...updates })
+    }
+    return { success: !error, error }
   }
 
   return (
