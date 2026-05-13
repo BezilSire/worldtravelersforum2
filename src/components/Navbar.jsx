@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
 import { Globe, Menu, X, LogOut, User, MessageSquare, MapPin } from 'lucide-react'
+import Logo from './Logo.jsx'
 
 export default function Navbar() {
   const { user, logout } = useAuth()
@@ -31,9 +32,8 @@ export default function Navbar() {
     <>
       <nav className="nav" id="main-nav">
         <div className="nav-inner">
-          <Link to="/" className="nav-logo">
-            <div className="nav-logo-icon"><Globe size={20} color="#0a0b0f" /></div>
-            <span>World Travelers <span className="text-gradient">Forum</span></span>
+          <Link to="/" className="nav-logo" style={{ display: 'flex', alignItems: 'center' }}>
+            <Logo style={{ height: '36px', width: 'auto' }} />
           </Link>
 
           <div className="nav-links">
