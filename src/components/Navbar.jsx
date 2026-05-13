@@ -10,8 +10,8 @@ export default function Navbar() {
   const navigate = useNavigate()
   const [mobileOpen, setMobileOpen] = useState(false)
 
-  const links = [
-    { to: '/', label: 'Home' },
+  const allLinks = [
+    { to: '/', label: 'Home', public: true },
     { to: '/feed', label: 'Feed' },
     { to: '/destinations', label: 'Destinations' },
     { to: '/missions', label: 'Missions' },
@@ -19,6 +19,8 @@ export default function Navbar() {
     { to: '/fund', label: 'Fund' },
     { to: '/bookings', label: 'Bookings' },
   ]
+
+  const links = allLinks.filter(link => link.public || user)
 
   const isActive = (path) => location.pathname === path
 
