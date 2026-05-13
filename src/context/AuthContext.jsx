@@ -19,10 +19,6 @@ export function AuthProvider({ children }) {
 
     void hydrateAuth()
 
-    const { data: authListener } = insforge.realtime.on('system', { event: 'auth_state_change' }, (e) => {
-       // Optional: listen to auth state changes if supported, otherwise just depend on the initial hydrate
-    })
-
     return () => { cancelled = true }
   }, [])
 
