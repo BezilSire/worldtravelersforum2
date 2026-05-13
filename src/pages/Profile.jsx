@@ -22,7 +22,7 @@ export default function Profile() {
   const [saving, setSaving] = useState(false)
   const fileInputRef = useRef(null)
 
-  if (!user) return <Navigate to="/auth" />
+  // if (!user) return <Navigate to="/auth" /> -- handled by ProtectedRoute
 
   const handleFileChange = (e) => {
     const file = e.target.files[0]

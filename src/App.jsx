@@ -13,6 +13,7 @@ import ExplorerProfile from './pages/ExplorerProfile.jsx'
 import DestinationDiscussion from './pages/DestinationDiscussion.jsx'
 import TestMissions from './pages/TestMissions.jsx'
 import Bookings from './pages/Bookings.jsx'
+import ProtectedRoute from './components/ProtectedRoute.jsx'
 
 export default function App() {
   return (
@@ -20,18 +21,20 @@ export default function App() {
       <Navbar />
       <Routes>
         <Route path="/" element={<Home />} />
-        <Route path="/profile" element={<Profile />} />
-        <Route path="/missions" element={<Missions />} />
-        <Route path="/feed" element={<Feed />} />
-        <Route path="/fund" element={<Fund />} />
-        <Route path="/claim" element={<ClaimStay />} />
         <Route path="/auth" element={<Auth />} />
-        <Route path="/destinations" element={<Destinations />} />
-        <Route path="/destinations/:id" element={<DestinationDiscussion />} />
-        <Route path="/messages" element={<Messages />} />
-        <Route path="/explorer/:id" element={<ExplorerProfile />} />
-        <Route path="/test-missions" element={<TestMissions />} />
-        <Route path="/bookings" element={<Bookings />} />
+        
+        {/* Protected Routes */}
+        <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+        <Route path="/missions" element={<ProtectedRoute><Missions /></ProtectedRoute>} />
+        <Route path="/feed" element={<ProtectedRoute><Feed /></ProtectedRoute>} />
+        <Route path="/fund" element={<ProtectedRoute><Fund /></ProtectedRoute>} />
+        <Route path="/claim" element={<ProtectedRoute><ClaimStay /></ProtectedRoute>} />
+        <Route path="/destinations" element={<ProtectedRoute><Destinations /></ProtectedRoute>} />
+        <Route path="/destinations/:id" element={<ProtectedRoute><DestinationDiscussion /></ProtectedRoute>} />
+        <Route path="/messages" element={<ProtectedRoute><Messages /></ProtectedRoute>} />
+        <Route path="/explorer/:id" element={<ProtectedRoute><ExplorerProfile /></ProtectedRoute>} />
+        <Route path="/test-missions" element={<ProtectedRoute><TestMissions /></ProtectedRoute>} />
+        <Route path="/bookings" element={<ProtectedRoute><Bookings /></ProtectedRoute>} />
       </Routes>
     </>
   )
