@@ -16,11 +16,10 @@ export default function Missions() {
 
   const handleCreate = (e) => {
     e.preventDefault()
-    if (!user || !form.title || !form.description) return
     createMission({
       ...form,
       countries: form.countries.split(',').map(c => c.trim()).filter(Boolean),
-      leader: user.name, leaderId: user.id, leaderAvatar: user.avatar,
+      leader: user.full_name, leaderId: user.id, leaderAvatar: user.avatar_url || user.full_name?.charAt(0).toUpperCase(),
       image: 'custom'
     })
     setShowCreate(false)
@@ -29,7 +28,7 @@ export default function Missions() {
 
   const handleJoin = (missionId) => {
     if (!user) return
-    joinMission(missionId, user.id, user.name, user.avatar)
+    joinMission(missionId, user.id, user.full_name, user.avatar_url || user.full_name?.charAt(0).toUpperCase())
   }
 
   const myMissions = missions.filter(m => m.leaderId === user?.id)
@@ -80,7 +79,7 @@ export default function Missions() {
                               onClick={() => {
                                 if (sessionVouches.includes(pid)) return
                                 vouchUser({ 
-                                  fromId: user.id, fromName: user.name, fromAvatar: user.avatar, 
+                                  fromId: user.id, fromName: user.full_name, fromAvatar: user.avatar_url || user.full_name?.charAt(0).toUpperCase(), 
                                   toId: pid, toName: `Explorer ${pid.slice(-3)}` 
                                 })
                                 setSessionVouches([...sessionVouches, pid])

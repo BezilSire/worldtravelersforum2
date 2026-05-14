@@ -66,8 +66,8 @@ export default function Feed() {
     e.preventDefault()
     if (!postText.trim() || !user) return
     createPost({
-      user: user.name,
-      avatar: user.avatar,
+      user: user.full_name,
+      avatar: user.avatar_url || user.full_name?.charAt(0).toUpperCase(),
       text: postText,
       image: postImage,
       flair: postFlair,
@@ -84,8 +84,8 @@ export default function Feed() {
     if (!text?.trim() || !user) return
     addComment(postId, {
       id: 'c' + Date.now(),
-      user: user.name,
-      avatar: user.avatar,
+      user: user.full_name,
+      avatar: user.avatar_url || user.full_name?.charAt(0).toUpperCase(),
       text: text,
       timestamp: new Date().toISOString()
     })
@@ -135,8 +135,8 @@ export default function Feed() {
           {/* Create Post (Substack Note Style) */}
           {user && activeTab === 'notes' && (
             <div className="animate-fade-up" style={{ marginBottom: 40, display: 'flex', gap: 16 }}>
-              <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'var(--gradient-gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem', fontWeight: 700, color: '#000', flexShrink: 0 }}>
-                {user.avatar}
+              <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'var(--gradient-gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem', fontWeight: 700, color: '#000', flexShrink: 0, overflow: 'hidden' }}>
+                {user.avatar_url?.startsWith('http') ? <img src={user.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (user.avatar_url || user.full_name?.charAt(0).toUpperCase())}
               </div>
               <form onSubmit={handleCreatePost} style={{ flex: 1 }}>
                 <textarea 
@@ -291,8 +291,8 @@ export default function Feed() {
                         {/* Standard Comment Input (Pro style) */}
                         {user && (
                           <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-                            <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--gradient-gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 700, color: '#000', flexShrink: 0 }}>
-                              {user.avatar}
+                            <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--gradient-gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 700, color: '#000', flexShrink: 0, overflow: 'hidden' }}>
+                              {user.avatar_url?.startsWith('http') ? <img src={user.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (user.avatar_url || user.full_name?.charAt(0).toUpperCase())}
                             </div>
                             <form onSubmit={(e) => handleComment(e, item.id)} style={{ flex: 1, position: 'relative' }}>
                               <input 

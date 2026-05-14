@@ -24,6 +24,7 @@ export function DataProvider({ children }) {
   const [feed, setFeed] = useState([])
   const [messages, setMessages] = useState([])
   const [fund] = useState(FUND_DATA)
+  const [destinations, setDestinations] = useState([])
   const [loading, setLoading] = useState(true)
 
   // Fetch Feed
@@ -63,6 +64,22 @@ export function DataProvider({ children }) {
     }
 
     fetchFeed()
+  }, [])
+
+  // Initial Data Load (Destinations & Loading State)
+  useEffect(() => {
+    async function initData() {
+      // Mock destinations for now since we don't have a table yet
+      setDestinations([
+        { id: 'tokyo', name: 'Tokyo', country: 'Japan', staysCount: 156, explorers: 12, discussionsCount: 8, description: 'The hub for Japan coordination. High density of verified stays and mission reports.', image: 'https://images.unsplash.com/photo-1540959733332-e94e270b4d82?auto=format&fit=crop&w=800' },
+        { id: 'berlin', name: 'Berlin', country: 'Germany', staysCount: 89, explorers: 8, discussionsCount: 5, description: 'Techno, startups and cold winters. A key node for European network movements.', image: 'https://images.unsplash.com/photo-1560969184-10fe8719e047?auto=format&fit=crop&w=800' },
+        { id: 'nairobi', name: 'Nairobi', country: 'Kenya', staysCount: 42, explorers: 5, discussionsCount: 3, description: 'The Silicon Savannah. Coordination point for East African exploration.', image: 'https://images.unsplash.com/photo-1547471080-7cc2caa01a7e?auto=format&fit=crop&w=800' },
+        { id: 'mexico-city', name: 'Mexico City', country: 'Mexico', staysCount: 124, explorers: 15, discussionsCount: 12, description: 'Culture, tacos and traffic. One of the most active coordination hubs in the Americas.', image: 'https://images.unsplash.com/photo-1518105779142-d975f22f1b0a?auto=format&fit=crop&w=800' }
+      ])
+      
+      setLoading(false)
+    }
+    initData()
   }, [])
 
   // Fetch User Stays
@@ -168,7 +185,7 @@ export function DataProvider({ children }) {
 
   return (
     <DataContext.Provider value={{ 
-      stays, missions, feed, fund, loading,
+      stays, missions, feed, fund, destinations, loading,
       submitStay, createPost, likePost, addComment
     }}>
       {children}
