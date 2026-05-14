@@ -4,6 +4,8 @@ import { useAuth } from './AuthContext.jsx'
 
 const DataContext = createContext(null)
 
+const ADMIN_EMAIL = 'bezilsire00@gmail.com'
+
 const FUND_DATA = {
   totalRevenue: 0,
   fundAllocation: 0,
@@ -38,7 +40,7 @@ export function DataProvider({ children }) {
   const [missions, setMissions] = useState([])
   const [feed, setFeed] = useState([])
   const [messages, setMessages] = useState(loadJson('wtf_messages', []))
-  const [fund] = useState(FUND_DATA)
+  const [fund, setFund] = useState(loadJson('wtf_fund', FUND_DATA))
   const [destinations, setDestinations] = useState([])
   const [loading, setLoading] = useState(true)
   const [discussions, setDiscussions] = useState(loadJson('wtf_discussions', {}))
@@ -46,7 +48,7 @@ export function DataProvider({ children }) {
   const [notifications, setNotifications] = useState(loadJson('wtf_notifications', []))
   const [feedEvents, setFeedEvents] = useState(loadJson('wtf_feed_events', []))
   const [testMissionApplications, setTestMissionApplications] = useState(loadJson('wtf_test_applications', []))
-  const [testMissions] = useState(loadJson('wtf_test_missions', [
+  const [testMissions, setTestMissions] = useState(loadJson('wtf_test_missions', [
     {
       id: 'tm_1',
       title: 'Bangkok Digital Nomad Hub Audit',
@@ -91,6 +93,8 @@ export function DataProvider({ children }) {
   const persistNotifications = (v) => { setNotifications(v); saveJson('wtf_notifications', v) }
   const persistFeedEvents = (v) => { setFeedEvents(v); saveJson('wtf_feed_events', v) }
   const persistTestApplications = (v) => { setTestMissionApplications(v); saveJson('wtf_test_applications', v) }
+
+  const isAdmin = user?.email === ADMIN_EMAIL
 
   const addFeedEvent = useCallback((event) => {
     const e = { id: genId(), timestamp: new Date().toISOString(), ...event }
@@ -522,6 +526,66 @@ export function DataProvider({ children }) {
     })
   }, [])
 
+  // --- Admin ---
+
+  const updateFundData = useCallback((data) => {
+    setFund(prev => {
+      const updated = { ...prev, ...data }
+      saveJson('wtf_fund', updated)
+      return updated
+    })
+    addFeedEvent({
+      type: 'fund_updated',
+      user: 'Network HQ',
+      text: `Explorer Fund updated — new allocation: $${data.fundAllocation?.toLocaleString() || 'N/A'}`
+    })
+  }, [])
+
+  const postSystemBroadcast = useCallback(({ title, body }) => {
+    addFeedEvent({
+      type: 'system_broadcast',
+      user: 'Network HQ',
+      userAvatar: 'HQ',
+      text: `**${title}** — ${body}`
+    })
+    persistNotifications(prev => {
+      const notif = {
+        id: genId(),
+        type: 'system_broadcast',
+        title,
+        body,
+        link: '/feed',
+        read: false,
+        timestamp: new Date().toISOString()
+      }
+      return [notif, ...prev]
+    })
+    try {
+      insforge.database.from('posts').insert({
+        user_id: user?.id || '00000000-0000-0000-0000-000000000000',
+        text: `📢 ${title}: ${body}`,
+        flair: 'system_update'
+      })
+    } catch {}
+  }, [user])
+
+  const addTestMission = useCallback((mission) => {
+    const m = { id: 'tm_' + genId(), ...mission }
+    setTestMissions(prev => {
+      const updated = [m, ...prev]
+      saveJson('wtf_test_missions', updated)
+      return updated
+    })
+  }, [])
+
+  const removeTestMission = useCallback((id) => {
+    setTestMissions(prev => {
+      const updated = prev.filter(m => m.id !== id)
+      saveJson('wtf_test_missions', updated)
+      return updated
+    })
+  }, [])
+
   // --- Notifications ---
 
   const markNotifRead = useCallback((notifId) => {
@@ -561,7 +625,8 @@ export function DataProvider({ children }) {
     applyToTestMission, updateTestMissionApplicationStatus,
     importPastHistory, reportUser,
     addFeedEvent, addNotification, markNotifRead, clearNotifs,
-    unreadCount
+    unreadCount,
+    isAdmin, updateFundData, postSystemBroadcast, addTestMission, removeTestMission
   }
 
   return (

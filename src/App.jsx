@@ -15,6 +15,7 @@ import TestMissions from './pages/TestMissions.jsx'
 import Bookings from './pages/Bookings.jsx'
 import Privacy from './pages/Privacy.jsx'
 import Terms from './pages/Terms.jsx'
+import Admin from './pages/Admin.jsx'
 import ProtectedRoute from './components/ProtectedRoute.jsx'
 
 export default function App() {
@@ -39,6 +40,7 @@ export default function App() {
         <Route path="/explorer/:id" element={<ProtectedRoute><ExplorerProfile /></ProtectedRoute>} />
         <Route path="/test-missions" element={<ProtectedRoute><TestMissions /></ProtectedRoute>} />
         <Route path="/bookings" element={<ProtectedRoute><Bookings /></ProtectedRoute>} />
+        <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
       </Routes>
     </>
   )

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
-import { Globe, ArrowRight, Key } from 'lucide-react'
+import { Globe, ArrowRight, Key, Shield } from 'lucide-react'
 
 export default function Auth() {
   const [mode, setMode] = useState('login') // login, signup, forgot, reset
@@ -145,6 +145,11 @@ export default function Auth() {
           </p>
         </div>
 
+        <div style={{ padding: '12px 16px', background: 'rgba(212,168,83,0.08)', border: '1px solid rgba(212,168,83,0.2)', borderRadius: 12, marginBottom: 24, fontSize: '0.85rem', color: 'var(--accent-gold)', textAlign: 'center' }}>
+          <Shield size={14} style={{ marginRight: 8 }} />
+          Platform in Early Access — Existing explorers only
+        </div>
+
         <form onSubmit={handleSubmit} className="glass-card" style={{ padding: 36 }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
             {renderForm()}
@@ -188,7 +193,7 @@ export default function Auth() {
 
         <p style={{ textAlign: 'center', marginTop: 24, color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
           {mode === 'login' && (
-            <>Don't have an account? <button onClick={() => { setMode('signup'); setError(''); setMsg('') }} style={{ color: 'var(--accent-gold)', textDecoration: 'underline', fontSize: '0.9rem', background: 'none', border: 'none', cursor: 'pointer' }}>Join the Network</button></>
+            <>New explorers welcome once the network opens.</>
           )}
           {mode === 'signup' && (
             <>Already an explorer? <button onClick={() => { setMode('login'); setError(''); setMsg('') }} style={{ color: 'var(--accent-gold)', textDecoration: 'underline', fontSize: '0.9rem', background: 'none', border: 'none', cursor: 'pointer' }}>Sign In</button></>
