@@ -18,7 +18,6 @@ export default function DestinationDiscussion() {
     e.preventDefault()
     if (!msgText.trim() || !user) return
     postToDiscussion(id, {
-      user: user.name,
       text: msgText,
       parentId: replyingTo?.id
     })

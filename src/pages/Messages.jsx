@@ -12,7 +12,7 @@ export default function Messages() {
 
   if (!user) return <Navigate to="/auth" />
 
-  const userMessages = messages.filter(m => m.to === user.name || m.from === user.name)
+  const userMessages = messages.filter(m => m.to === user.full_name || m.from === user.full_name)
   const userGroups = groupChats.filter(gc => gc.participants.includes(user.id))
 
   const handleSend = (e) => {
@@ -21,13 +21,13 @@ export default function Messages() {
     
     if (activeChat.type === 'dm') {
       sendMessage({
-        from: user.name,
+        from: user.full_name,
         to: activeChat.id === 'alex' ? 'Alex Chen' : '', 
         text: msgText,
       })
     } else {
       sendGroupMessage(activeChat.id, {
-        from: user.name,
+        from: user.full_name,
         text: msgText,
       })
     }
@@ -114,7 +114,7 @@ export default function Messages() {
             <div style={{ flex: 1, padding: 24, display: 'flex', flexDirection: 'column', gap: 16, overflowY: 'auto' }}>
               {currentMessages.map((m, i) => (
                 <div key={i} style={{ 
-                  alignSelf: m.from === user.name ? 'flex-end' : 'flex-start',
+                  alignSelf: m.from === user.full_name ? 'flex-end' : 'flex-start',
                   maxWidth: '70%',
                   padding: '12px 16px',
                   borderRadius: 16,
@@ -122,7 +122,7 @@ export default function Messages() {
                   border: '1px solid var(--border-subtle)',
                   fontSize: '0.9rem'
                 }}>
-                  {activeChat.type === 'group' && m.from !== user.name && (
+                  {activeChat.type === 'group' && m.from !== user.full_name && (
                     <div style={{ fontWeight: 700, fontSize: '0.75rem', color: 'var(--accent-teal)', marginBottom: 4 }}>{m.from}</div>
                   )}
                   {m.text}

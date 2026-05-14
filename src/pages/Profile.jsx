@@ -1,12 +1,12 @@
 import { useAuth } from '../context/AuthContext.jsx'
 import { useData } from '../context/DataContext.jsx'
 import { Link, Navigate } from 'react-router-dom'
-import { MapPin, Globe, Shield, Star, Calendar, ArrowRight, Compass, CheckCircle, History, X, Plus, Camera, AlertTriangle, Heart, Instagram, Youtube, Music2, Edit3, LifeBuoy, FileText } from 'lucide-react'
+import { MapPin, Globe, Shield, Star, Calendar, ArrowRight, Compass, CheckCircle, History, X, Plus, Camera, AlertTriangle, Heart, Instagram, Youtube, Music2, Edit3, LifeBuoy, FileText, Bell, Mountain, MessageSquare, ExternalLink } from 'lucide-react'
 import { useState, useRef } from 'react'
 
 export default function Profile() {
   const { user, updateUser, checkUsername } = useAuth()
-  const { stays, importPastHistory, reportUser } = useData()
+  const { stays, missions, notifications, markNotifRead, importPastHistory, reportUser } = useData()
   const [showImport, setShowImport] = useState(false)
   const [showEdit, setShowEdit] = useState(false)
   const [importForm, setImportForm] = useState({ countriesCount: 0, staysCount: 0 })
@@ -203,8 +203,85 @@ export default function Profile() {
           <Link to="/claim" className="btn-primary"><Shield size={18} /> Claim Another Stay <ArrowRight size={16} /></Link>
         </div>
 
+        {/* My Missions */}
+        <div className="glass-card" style={{ padding: 32, marginTop: 32 }}>
+          <h3 style={{ fontSize: '1.1rem', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Mountain size={18} style={{ color: 'var(--accent-purple)' }} /> My Missions
+          </h3>
+          {(() => {
+            const joinedMissions = missions.filter(m => m.participants.includes(user.id))
+            if (joinedMissions.length === 0) {
+              return <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>You haven't joined any missions yet. <Link to="/missions" style={{ color: 'var(--accent-gold)' }}>Explore missions</Link> to get started.</p>
+            }
+            return (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {joinedMissions.map(m => (
+                  <div key={m.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', background: 'var(--bg-elevated)', borderRadius: 12, border: '1px solid var(--border-subtle)' }}>
+                    <div>
+                      <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>{m.title}</div>
+                      <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Led by {m.leader} · {m.participants.length} explorers</div>
+                    </div>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <Link to="/messages" style={{ color: 'var(--accent-teal)' }} title="Mission Chat">
+                        <MessageSquare size={16} />
+                      </Link>
+                      <Link to="/missions" style={{ color: 'var(--text-muted)' }} title="View Mission">
+                        <ExternalLink size={16} />
+                      </Link>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )
+          })()}
+        </div>
+
+        {/* Notifications */}
+        <div className="glass-card" style={{ padding: 32, marginTop: 32 }}>
+          <h3 style={{ fontSize: '1.1rem', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Bell size={18} style={{ color: 'var(--accent-gold)' }} /> Notifications
+            {notifications.filter(n => !n.read).length > 0 && (
+              <span className="badge badge-gold" style={{ fontSize: '0.65rem', padding: '2px 8px' }}>
+                {notifications.filter(n => !n.read).length} new
+              </span>
+            )}
+          </h3>
+          {notifications.length > 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {notifications.slice(0, 10).map(n => (
+                <div
+                  key={n.id}
+                  onClick={() => markNotifRead(n.id)}
+                  style={{
+                    padding: '12px 16px',
+                    borderRadius: 12,
+                    background: n.read ? 'transparent' : 'var(--bg-elevated)',
+                    border: '1px solid var(--border-subtle)',
+                    cursor: 'pointer',
+                    opacity: n.read ? 0.6 : 1,
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'flex-start',
+                    gap: 12
+                  }}
+                >
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: '0.9rem', marginBottom: 2 }}>{n.title}</div>
+                    {n.body && <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{n.body}</div>}
+                  </div>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                    {new Date(n.timestamp).toLocaleDateString()}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>No notifications yet. They'll appear here when you join missions or receive updates.</p>
+          )}
+        </div>
+
         {/* Support */}
-        <div className="glass-card" style={{ padding: 32, marginTop: 40 }}>
+        <div className="glass-card" style={{ padding: 32, marginTop: 32 }}>
           <h3 style={{ fontSize: '1.1rem', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
             <LifeBuoy size={18} style={{ color: 'var(--accent-teal)' }} /> Support
           </h3>

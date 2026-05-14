@@ -1,8 +1,8 @@
 import { useData } from '../context/DataContext.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
 import { Link } from 'react-router-dom'
-import { Shield, Mountain, Star, Users, Globe, MapPin, MessageSquare, Heart, Send, Plus, TrendingUp, Award, Clock, Zap, Image, X, Tag } from 'lucide-react'
-import { useState } from 'react'
+import { Shield, Mountain, Star, Users, Globe, MapPin, MessageSquare, Heart, Send, Plus, TrendingUp, Award, Clock, Zap, Image, X, Tag, UserPlus, LogIn, Flag } from 'lucide-react'
+import { useState, useMemo } from 'react'
 
 const FEED_ICONS = {
   verified_stay: <Shield size={16} />,
@@ -100,6 +100,30 @@ export default function Feed() {
         setPostImage(reader.result)
       }
       reader.readAsDataURL(file)
+    }
+  }
+
+  const filteredFeed = useMemo(() => {
+    return feed.filter(item => {
+      if (activeTab === 'notes') return item.type === 'user_post' || (!item.type || item.type === 'note')
+      if (activeTab === 'missions') return item.type?.includes('mission')
+      if (activeTab === 'updates') return item.type && item.type !== 'user_post' && !item.type?.includes('mission')
+      return true
+    })
+  }, [feed, activeTab])
+
+  const getEventIcon = (type) => {
+    switch(type) {
+      case 'stay_submitted': return <MapPin size={14} />
+      case 'verified_stay': return <Shield size={14} />
+      case 'mission_launch': return <Flag size={14} />
+      case 'mission_join': return <LogIn size={14} />
+      case 'discussion_started': return <MessageSquare size={14} />
+      case 'vouch': return <Heart size={14} />
+      case 'import_history': return <Star size={14} />
+      case 'test_mission_applied': return <Zap size={14} />
+      case 'test_mission_approved': return <Award size={14} />
+      default: return null
     }
   }
 
@@ -208,7 +232,13 @@ export default function Feed() {
           )}
 
           <div style={{ display: 'flex', flexDirection: 'column' }}>
-            {feed.map((item, i) => (
+            {filteredFeed.length === 0 && (
+              <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--text-muted)' }}>
+                <Globe size={48} style={{ marginBottom: 16, opacity: 0.2 }} />
+                <p>{activeTab === 'updates' ? 'No network updates yet. Activity will appear here as explorers join, claim stays, and launch missions.' : 'No posts yet. Be the first to share a travel note!'}</p>
+              </div>
+            )}
+            {filteredFeed.map((item, i) => (
               <div key={item.id} className="feed-card animate-fade-up">
                 <div style={{ display: 'flex', gap: 16 }}>
                   {/* Author Info */}
@@ -227,6 +257,11 @@ export default function Feed() {
                     </div>
 
                     <div style={{ marginBottom: 12 }}>
+                      {item.type && item.type !== 'user_post' && item.type !== 'note' ? (
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', background: 'var(--accent-gold-glow)', color: 'var(--accent-gold)', borderRadius: 100, fontSize: '0.75rem', fontWeight: 600, marginBottom: 8 }}>
+                          {getEventIcon(item.type)} {item.type.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
+                        </div>
+                      ) : null}
                       {item.type === 'verified_stay' && (
                         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', background: 'var(--accent-teal-glow)', color: 'var(--accent-teal)', borderRadius: 100, fontSize: '0.75rem', fontWeight: 600, marginBottom: 8 }}>
                           <Shield size={12} /> Verified Stay
@@ -237,7 +272,7 @@ export default function Feed() {
                           <Zap size={12} /> Mission Field Report
                         </div>
                       )}
-                      {item.flair && item.flair !== 'note' && (
+                      {item.flair && item.flair !== 'note' && item.type === 'user_post' && (
                         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', background: `${FLAIRS.find(f => f.id === item.flair)?.color || 'var(--accent-teal)'}15`, color: FLAIRS.find(f => f.id === item.flair)?.color || 'var(--accent-teal)', borderRadius: 100, fontSize: '0.75rem', fontWeight: 600, marginBottom: 8 }}>
                           <Tag size={12} /> {FLAIRS.find(f => f.id === item.flair)?.label || 'Update'}
                         </div>

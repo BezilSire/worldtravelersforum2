@@ -103,3 +103,120 @@ drop policy if exists "Missions are viewable by everyone." on public.missions;
 create policy "Missions are viewable by everyone." on public.missions for select using (true);
 drop policy if exists "Verified users can create missions." on public.missions;
 create policy "Verified users can create missions." on public.missions for insert with check (auth.uid() = creator_id);
+
+-- Mission Participants
+create table if not exists public.mission_participants (
+  id uuid default gen_random_uuid() primary key,
+  mission_id uuid references public.missions on delete cascade not null,
+  user_id uuid references auth.users not null,
+  user_name text,
+  avatar_url text,
+  joined_at timestamptz default now()
+);
+
+alter table public.mission_participants enable row level security;
+drop policy if exists "Participants viewable by everyone." on public.mission_participants;
+create policy "Participants viewable by everyone." on public.mission_participants for select using (true);
+drop policy if exists "Users can join missions." on public.mission_participants;
+create policy "Users can join missions." on public.mission_participants for insert with check (auth.uid() = user_id);
+
+-- Destination Discussion Messages
+create table if not exists public.discussion_messages (
+  id uuid default gen_random_uuid() primary key,
+  destination_id text not null,
+  user_id uuid references auth.users not null,
+  text text not null,
+  parent_id uuid references public.discussion_messages,
+  timestamp timestamptz default now()
+);
+
+alter table public.discussion_messages enable row level security;
+drop policy if exists "Discussion messages viewable by everyone." on public.discussion_messages;
+create policy "Discussion messages viewable by everyone." on public.discussion_messages for select using (true);
+drop policy if exists "Users can post in discussions." on public.discussion_messages;
+create policy "Users can post in discussions." on public.discussion_messages for insert with check (auth.uid() = user_id);
+
+-- Group Chats (for missions)
+create table if not exists public.group_chats (
+  id uuid default gen_random_uuid() primary key,
+  title text not null,
+  mission_id uuid references public.missions on delete cascade,
+  created_by uuid references auth.users not null,
+  created_at timestamptz default now()
+);
+
+alter table public.group_chats enable row level security;
+drop policy if exists "Group chats viewable by members." on public.group_chats;
+create policy "Group chats viewable by members." on public.group_chats for select using (
+  auth.uid() in (
+    select user_id from public.group_chat_members where group_chat_id = id
+  ) or auth.uid() = created_by
+);
+
+-- Group Chat Members
+create table if not exists public.group_chat_members (
+  id uuid default gen_random_uuid() primary key,
+  group_chat_id uuid references public.group_chats on delete cascade not null,
+  user_id uuid references auth.users not null
+);
+
+alter table public.group_chat_members enable row level security;
+drop policy if exists "Members viewable by members." on public.group_chat_members;
+create policy "Members viewable by members." on public.group_chat_members for select using (true);
+drop policy if exists "Users can join group chats." on public.group_chat_members;
+create policy "Users can join group chats." on public.group_chat_members for insert with check (auth.uid() = user_id);
+
+-- Group Chat Messages
+create table if not exists public.group_chat_messages (
+  id uuid default gen_random_uuid() primary key,
+  group_chat_id uuid references public.group_chats on delete cascade not null,
+  user_id uuid references auth.users not null,
+  user_name text,
+  text text not null,
+  timestamp timestamptz default now()
+);
+
+alter table public.group_chat_messages enable row level security;
+drop policy if exists "Group messages viewable by members." on public.group_chat_messages;
+create policy "Group messages viewable by members." on public.group_chat_messages for select using (
+  auth.uid() in (
+    select user_id from public.group_chat_members where group_chat_id = group_chat_id
+  )
+);
+drop policy if exists "Users can message in groups." on public.group_chat_messages;
+create policy "Users can message in groups." on public.group_chat_messages for insert with check (auth.uid() = user_id);
+
+-- Direct Messages
+create table if not exists public.direct_messages (
+  id uuid default gen_random_uuid() primary key,
+  sender_id uuid references auth.users not null,
+  receiver_id uuid references auth.users not null,
+  text text not null,
+  timestamp timestamptz default now()
+);
+
+alter table public.direct_messages enable row level security;
+drop policy if exists "Users can see their own DMs." on public.direct_messages;
+create policy "Users can see their own DMs." on public.direct_messages for select using (
+  auth.uid() = sender_id or auth.uid() = receiver_id
+);
+drop policy if exists "Users can send DMs." on public.direct_messages;
+create policy "Users can send DMs." on public.direct_messages for insert with check (auth.uid() = sender_id);
+
+-- Notifications
+create table if not exists public.notifications (
+  id uuid default gen_random_uuid() primary key,
+  user_id uuid references auth.users not null,
+  type text not null,
+  title text not null,
+  body text,
+  link text,
+  read boolean default false,
+  timestamp timestamptz default now()
+);
+
+alter table public.notifications enable row level security;
+drop policy if exists "Users see own notifications." on public.notifications;
+create policy "Users see own notifications." on public.notifications for select using (auth.uid() = user_id);
+drop policy if exists "System can create notifications." on public.notifications;
+create policy "System can create notifications." on public.notifications for insert with check (true);

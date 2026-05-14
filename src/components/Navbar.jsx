@@ -1,11 +1,14 @@
 import { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
-import { Globe, Menu, X, LogOut, User, MessageSquare, MapPin } from 'lucide-react'
+import { Globe, Menu, X, LogOut, User, MessageSquare, MapPin, Bell } from 'lucide-react'
+import { useData } from '../context/DataContext.jsx'
 import Logo from './Logo.jsx'
 
 export default function Navbar() {
   const { user, logout } = useAuth()
+  const { notifications } = useData() || {}
+  const unreadCount = notifications?.filter(n => !n.read).length || 0
   const location = useLocation()
   const navigate = useNavigate()
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -49,6 +52,20 @@ export default function Navbar() {
           <div className="nav-actions">
             {user ? (
               <>
+                <Link to="/profile" className="nav-link" title="Notifications" style={{ position: 'relative' }}>
+                  <Bell size={18} />
+                  {unreadCount > 0 && (
+                    <span style={{
+                      position: 'absolute', top: -4, right: -4,
+                      background: 'var(--accent-gold)', color: '#000',
+                      fontSize: '0.6rem', fontWeight: 700,
+                      width: 18, height: 18, borderRadius: '50%',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center'
+                    }}>
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
+                  )}
+                </Link>
                 <Link to="/messages" className="nav-link" title="Messages">
                   <MessageSquare size={18} />
                 </Link>

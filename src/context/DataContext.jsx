@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react'
 import { insforge } from '../lib/insforge.js'
 import { useAuth } from './AuthContext.jsx'
 
@@ -17,15 +17,92 @@ const FUND_DATA = {
   recentAllocations: []
 }
 
+function loadJson(key, fallback) {
+  try {
+    const raw = localStorage.getItem(key)
+    return raw ? JSON.parse(raw) : fallback
+  } catch { return fallback }
+}
+
+function saveJson(key, data) {
+  try { localStorage.setItem(key, JSON.stringify(data)) } catch {}
+}
+
+function genId() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 7)
+}
+
 export function DataProvider({ children }) {
   const { user } = useAuth()
   const [stays, setStays] = useState([])
   const [missions, setMissions] = useState([])
   const [feed, setFeed] = useState([])
-  const [messages, setMessages] = useState([])
+  const [messages, setMessages] = useState(loadJson('wtf_messages', []))
   const [fund] = useState(FUND_DATA)
   const [destinations, setDestinations] = useState([])
   const [loading, setLoading] = useState(true)
+  const [discussions, setDiscussions] = useState(loadJson('wtf_discussions', {}))
+  const [groupChats, setGroupChats] = useState(loadJson('wtf_group_chats', []))
+  const [notifications, setNotifications] = useState(loadJson('wtf_notifications', []))
+  const [feedEvents, setFeedEvents] = useState(loadJson('wtf_feed_events', []))
+  const [testMissionApplications, setTestMissionApplications] = useState(loadJson('wtf_test_applications', []))
+  const [testMissions] = useState(loadJson('wtf_test_missions', [
+    {
+      id: 'tm_1',
+      title: 'Bangkok Digital Nomad Hub Audit',
+      type: 'Field Test',
+      destination: 'Thailand',
+      city: 'Bangkok',
+      description: 'Evaluate coliving spaces, cafe workability, and SIM card reliability in Bangkok\'s top nomad neighborhoods. Produce a detailed field report for the network.',
+      duration: '2 Weeks',
+      support: ['Accommodation Covered', 'Local SIM', 'Meal Stipend'],
+      requirements: ['5+ Verified Stays', 'Previous SE Asia travel', 'Detail-oriented reporting'],
+      image: 'bangkok'
+    },
+    {
+      id: 'tm_2',
+      title: 'Lisbon to Porto Rail Connectivity',
+      type: 'Transport Audit',
+      destination: 'Portugal',
+      city: 'Lisbon',
+      description: 'Test and document the rail corridor between Portugal\'s two largest cities. Assess reliability, wifi, luggage policies, and nomad-friendliness of stations.',
+      duration: '1 Week',
+      support: ['Train Pass', 'Accommodation', 'Local Transport'],
+      requirements: ['3+ Verified Stays', 'Photography skills'],
+      image: 'portugal'
+    },
+    {
+      id: 'tm_3',
+      title: 'Medellin Remote Work Infrastructure',
+      type: 'Infrastructure Review',
+      destination: 'Colombia',
+      city: 'Medellin',
+      description: 'Deep dive into Medellin\'s internet reliability, co-working spaces, and neighborhood safety for remote workers. Create a definitive guide for the network.',
+      duration: '3 Weeks',
+      support: ['Co-working Membership', 'Accommodation', 'Translation Support'],
+      requirements: ['10+ Verified Stays', 'Spanish basics preferred', 'Previous LATAM travel'],
+      image: 'colombia'
+    }
+  ]))
+
+  const persistMessages = (v) => { setMessages(v); saveJson('wtf_messages', v) }
+  const persistDiscussions = (v) => { setDiscussions(v); saveJson('wtf_discussions', v) }
+  const persistGroupChats = (v) => { setGroupChats(v); saveJson('wtf_group_chats', v) }
+  const persistNotifications = (v) => { setNotifications(v); saveJson('wtf_notifications', v) }
+  const persistFeedEvents = (v) => { setFeedEvents(v); saveJson('wtf_feed_events', v) }
+  const persistTestApplications = (v) => { setTestMissionApplications(v); saveJson('wtf_test_applications', v) }
+
+  const addFeedEvent = useCallback((event) => {
+    const e = { id: genId(), timestamp: new Date().toISOString(), ...event }
+    persistFeedEvents(prev => [e, ...prev].slice(0, 200))
+    return e
+  }, [])
+
+  const addNotification = useCallback((userId, notif) => {
+    const n = { id: genId(), timestamp: new Date().toISOString(), read: false, ...notif }
+    persistNotifications(prev => [n, ...prev])
+    return n
+  }, [])
 
   // Fetch Feed
   useEffect(() => {
@@ -41,7 +118,7 @@ export function DataProvider({ children }) {
           )
         `)
         .order('timestamp', { ascending: false })
-      
+
       if (!error) {
         setFeed(data.map(post => ({
           id: post.id,
@@ -52,6 +129,7 @@ export function DataProvider({ children }) {
           flair: post.flair,
           likes: post.likes_count,
           timestamp: post.timestamp,
+          type: post.flair === 'system_update' ? post.flair : 'user_post',
           comments: post.comments?.map(c => ({
             id: c.id,
             user: c.profiles?.full_name || 'Explorer',
@@ -66,17 +144,15 @@ export function DataProvider({ children }) {
     fetchFeed()
   }, [])
 
-  // Initial Data Load (Destinations & Loading State)
+  // Initial Data Load
   useEffect(() => {
     async function initData() {
-      // Mock destinations for now since we don't have a table yet
       setDestinations([
         { id: 'tokyo', name: 'Tokyo', country: 'Japan', staysCount: 156, explorers: 12, discussionsCount: 8, description: 'The hub for Japan coordination. High density of verified stays and mission reports.', image: 'https://images.unsplash.com/photo-1540959733332-e94e270b4d82?auto=format&fit=crop&w=800' },
         { id: 'berlin', name: 'Berlin', country: 'Germany', staysCount: 89, explorers: 8, discussionsCount: 5, description: 'Techno, startups and cold winters. A key node for European network movements.', image: 'https://images.unsplash.com/photo-1560969184-10fe8719e047?auto=format&fit=crop&w=800' },
         { id: 'nairobi', name: 'Nairobi', country: 'Kenya', staysCount: 42, explorers: 5, discussionsCount: 3, description: 'The Silicon Savannah. Coordination point for East African exploration.', image: 'https://images.unsplash.com/photo-1547471080-7cc2caa01a7e?auto=format&fit=crop&w=800' },
         { id: 'mexico-city', name: 'Mexico City', country: 'Mexico', staysCount: 124, explorers: 15, discussionsCount: 12, description: 'Culture, tacos and traffic. One of the most active coordination hubs in the Americas.', image: 'https://images.unsplash.com/photo-1518105779142-d975f22f1b0a?auto=format&fit=crop&w=800' }
       ])
-      
       setLoading(false)
     }
     initData()
@@ -84,23 +160,64 @@ export function DataProvider({ children }) {
 
   // Fetch User Stays
   useEffect(() => {
-    if (!user) {
-      setStays([])
-      return
-    }
-
+    if (!user) { setStays([]); return }
     async function fetchStays() {
       const { data, error } = await insforge.database
         .from('stays')
         .select('*')
         .eq('user_id', user.id)
         .order('timestamp', { ascending: false })
-      
       if (!error) setStays(data)
     }
-
     fetchStays()
   }, [user])
+
+  // Fetch Missions with participants
+  useEffect(() => {
+    async function fetchMissions() {
+      const { data, error } = await insforge.database
+        .from('missions')
+        .select('*')
+        .order('timestamp', { ascending: false })
+
+      if (!error) {
+        const loaded = data.map(m => ({
+          id: m.id,
+          title: m.title,
+          type: m.type || 'Field Test',
+          destination: m.cities || 'Global',
+          city: m.cities || 'Various',
+          countries: m.cities ? [m.cities] : ['Global'],
+          description: m.description,
+          duration: 'Various',
+          startDate: m.start_date || 'TBD',
+          endDate: m.end_date || 'TBD',
+          joiningDeadline: m.joining_deadline || '',
+          image: m.image_url || 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=800',
+          support: ['Logistics', 'Funded'],
+          requirements: ['Verified Explorer'],
+          spots: m.spots_left || 5,
+          maxParticipants: (m.spots_left || 5) + 2,
+          participants: [],
+          interested: [],
+          leader: m.creator_name || 'Network HQ',
+          leaderId: m.creator_id || 'hq',
+          leaderAvatar: 'HQ',
+          timestamp: m.timestamp
+        }))
+
+        const stored = loadJson('wtf_mission_participants', {})
+        const withParticipants = loaded.map(m => ({
+          ...m,
+          participants: stored[m.id]?.participants || [],
+          interested: stored[m.id]?.interested || []
+        }))
+
+        setMissions(withParticipants)
+      }
+    }
+    fetchMissions()
+  }, [])
 
   const submitStay = async (stayData) => {
     if (!user) return
@@ -113,10 +230,26 @@ export function DataProvider({ children }) {
       check_out: stayData.checkOut
     })
     if (!error) {
-      // Refresh stays
       const { data } = await insforge.database.from('stays').select('*').eq('user_id', user.id)
       setStays(data)
+      submitStayFeedEvent(user, stayData)
     }
+  }
+
+  const submitStayFeedEvent = async (usr, stayData) => {
+    const ev = addFeedEvent({
+      type: 'stay_submitted',
+      user: usr.full_name,
+      userId: usr.id,
+      text: `submitted a stay at ${stayData.hotel} in ${stayData.country}`
+    })
+    try {
+      await insforge.database.from('posts').insert({
+        user_id: usr.id,
+        text: ev.text,
+        flair: 'system_update'
+      })
+    } catch {}
   }
 
   const createPost = async (postData) => {
@@ -128,13 +261,18 @@ export function DataProvider({ children }) {
       flair: postData.flair
     })
     if (!error) {
-      // In a real app we'd use realtime, for now just refetch or optimistically update
-      window.location.reload() // Quickest way to refresh the complex joined query
+      addFeedEvent({
+        type: 'user_post',
+        user: user.full_name,
+        userId: user.id,
+        text: postData.text,
+        flair: postData.flair
+      })
+      window.location.reload()
     }
   }
 
   const likePost = async (postId) => {
-    // Basic like increment
     await insforge.database.rpc('increment_likes', { post_id: postId })
   }
 
@@ -147,47 +285,287 @@ export function DataProvider({ children }) {
     })
   }
 
-  // Fetch Missions
-  useEffect(() => {
-    async function fetchMissions() {
-      const { data, error } = await insforge.database
-        .from('missions')
-        .select('*')
-        .order('timestamp', { ascending: false })
-      
-      if (!error) {
-        setMissions(data.map(m => ({
-          id: m.id,
-          title: m.title,
-          type: m.type || 'Field Test',
-          destination: m.cities || 'Global',
-          city: m.cities || 'Various',
-          countries: m.cities ? [m.cities] : ['Global'],
-          description: m.description,
-          duration: 'Various',
-          startDate: 'TBD',
-          endDate: 'TBD',
-          image: m.image_url || 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=800',
-          support: ['Logistics', 'Funded'],
-          requirements: ['Verified Explorer'],
-          spots: m.spots_left || 5,
-          maxParticipants: (m.spots_left || 5) + 2,
-          participants: [],
-          interested: [],
-          leader: 'Network HQ',
-          leaderId: 'hq',
-          leaderAvatar: 'HQ'
-        })))
-      }
+  // --- Discussions ---
+
+  const startDiscussion = useCallback((countryName) => {
+    const id = countryName.toLowerCase().replace(/\s+/g, '-')
+    setDestinations(prev => {
+      if (prev.find(d => d.id === id)) return prev
+      return [{ id, name: countryName, country: countryName, staysCount: 0, explorers: 1, discussionsCount: 0, description: `Coordination hub for ${countryName}.` }, ...prev]
+    })
+    persistDiscussions(prev => ({ ...prev, [id]: [] }))
+    if (user) {
+      addFeedEvent({
+        type: 'discussion_started',
+        user: user.full_name,
+        userId: user.id,
+        text: `started a new coordination hub for ${countryName}`
+      })
     }
-    fetchMissions()
+    return id
+  }, [user])
+
+  const postToDiscussion = useCallback((destId, msg) => {
+    if (!user) return
+    const post = {
+      id: genId(),
+      user: user.full_name,
+      userId: user.id,
+      text: msg.text,
+      parentId: msg.parentId || null,
+      timestamp: new Date().toISOString()
+    }
+    persistDiscussions(prev => {
+      const existing = prev[destId] || []
+      return { ...prev, [destId]: [...existing, post] }
+    })
+  }, [user])
+
+  // --- Missions ---
+
+  const saveMissionParticipants = (allMissions) => {
+    const map = {}
+    allMissions.forEach(m => {
+      map[m.id] = { participants: m.participants, interested: m.interested }
+    })
+    saveJson('wtf_mission_participants', map)
+  }
+
+  const createMission = useCallback((form) => {
+    if (!user) return
+    const missionId = 'mission_' + genId()
+    const newMission = {
+      id: missionId,
+      title: form.title,
+      type: form.type || 'Custom',
+      description: form.description,
+      countries: form.countries || ['Global'],
+      startDate: form.startDate || 'TBD',
+      endDate: form.endDate || 'TBD',
+      maxParticipants: form.maxParticipants || 12,
+      joiningDeadline: form.joiningDeadline || '',
+      participants: [],
+      interested: [],
+      leader: user.full_name,
+      leaderId: user.id,
+      leaderAvatar: user.avatar_url || user.full_name?.charAt(0).toUpperCase(),
+      image: form.image || 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=800',
+      support: ['Logistics', 'Funded'],
+      requirements: ['Verified Explorer'],
+      spots: 5,
+      timestamp: new Date().toISOString()
+    }
+    setMissions(prev => {
+      const updated = [newMission, ...prev]
+      saveMissionParticipants(updated)
+      return updated
+    })
+    addFeedEvent({
+      type: 'mission_launch',
+      user: user.full_name,
+      userId: user.id,
+      text: `launched a new mission: ${form.title}`
+    })
+    // Auto-create group chat for the mission
+    const chatId = 'chat_' + genId()
+    const newChat = {
+      id: chatId,
+      title: form.title,
+      missionId: missionId,
+      createdBy: user.id,
+      participants: [user.id],
+      messages: []
+    }
+    persistGroupChats(prev => [...prev, newChat])
+  }, [user])
+
+  const joinMission = useCallback((missionId) => {
+    if (!user) return
+    setMissions(prev => {
+      const updated = prev.map(m => {
+        if (m.id !== missionId) return m
+        if (m.participants.includes(user.id)) return m
+        return {
+          ...m,
+          participants: [...m.participants, user.id],
+          spots: m.spots - 1
+        }
+      })
+      saveMissionParticipants(updated)
+      return updated
+    })
+    addFeedEvent({
+      type: 'mission_join',
+      user: user.full_name,
+      userId: user.id,
+      text: `joined mission`
+    })
+    // Add user to mission group chat
+    persistGroupChats(prev => prev.map(gc => {
+      if (gc.missionId === missionId && !gc.participants.includes(user.id)) {
+        return { ...gc, participants: [...gc.participants, user.id] }
+      }
+      return gc
+    }))
+    addNotification(user.id, {
+      type: 'mission_joined',
+      title: 'Mission Joined',
+      body: 'You have joined a new mission.',
+      link: '/missions'
+    })
+  }, [user])
+
+  const vouchUser = useCallback(({ fromId, fromName, fromAvatar, toId, toName }) => {
+    addFeedEvent({
+      type: 'vouch',
+      user: fromName,
+      userId: fromId,
+      text: `vouched for ${toName}`
+    })
+    addNotification(toId, {
+      type: 'vouch_received',
+      title: 'You received a vouch!',
+      body: `${fromName} vouched for you.`,
+      link: '/profile'
+    })
   }, [])
 
+  // --- Messages ---
+
+  const sendMessage = useCallback(({ from, to, text }) => {
+    const msg = {
+      id: genId(),
+      from,
+      to,
+      text,
+      timestamp: new Date().toISOString()
+    }
+    persistMessages(prev => [...prev, msg])
+  }, [])
+
+  const sendGroupMessage = useCallback((chatId, { from, text }) => {
+    const msg = {
+      id: genId(),
+      from,
+      text,
+      timestamp: new Date().toISOString()
+    }
+    persistGroupChats(prev => prev.map(gc => {
+      if (gc.id !== chatId) return gc
+      return { ...gc, messages: [...(gc.messages || []), msg] }
+    }))
+  }, [])
+
+  // --- Test Missions ---
+
+  const applyToTestMission = useCallback((app) => {
+    const application = {
+      id: genId(),
+      ...app,
+      status: 'pending',
+      timestamp: new Date().toISOString()
+    }
+    persistTestApplications(prev => [...prev, application])
+    if (user) {
+      addFeedEvent({
+        type: 'test_mission_applied',
+        user: user.full_name,
+        userId: user.id,
+        text: `applied for test mission: ${app.missionTitle}`
+      })
+    }
+  }, [user])
+
+  const updateTestMissionApplicationStatus = useCallback((appId, status) => {
+    persistTestApplications(prev => prev.map(a => {
+      if (a.id !== appId) return a
+      if (status === 'approved') {
+        addNotification(a.userId, {
+          type: 'mission_approved',
+          title: 'Mission Application Approved!',
+          body: `Your application for "${a.missionTitle}" has been approved.`,
+          link: '/test-missions'
+        })
+        addFeedEvent({
+          type: 'test_mission_approved',
+          user: a.userName,
+          userId: a.userId,
+          text: `was approved for test mission: ${a.missionTitle}`
+        })
+      }
+      return { ...a, status }
+    }))
+  }, [])
+
+  // --- Import / Report ---
+
+  const importPastHistory = useCallback(({ countriesCount, staysCount }, usr, updateUser) => {
+    updateUser({
+      countries_count: usr.countries_count + countriesCount,
+      stays_count: usr.stays_count + staysCount,
+      xp: usr.xp + (countriesCount * 50) + (staysCount * 30)
+    })
+    addFeedEvent({
+      type: 'import_history',
+      user: usr.full_name,
+      userId: usr.id,
+      text: `imported ${countriesCount} countries and ${staysCount} past stays`
+    })
+  }, [])
+
+  const reportUser = useCallback(({ to, from }) => {
+    addNotification(to, {
+      type: 'user_reported',
+      title: 'User Report Submitted',
+      body: 'Your report has been received. The network team will review it.',
+      link: '/profile'
+    })
+  }, [])
+
+  // --- Notifications ---
+
+  const markNotifRead = useCallback((notifId) => {
+    persistNotifications(prev => prev.map(n => n.id === notifId ? { ...n, read: true } : n))
+  }, [])
+
+  const clearNotifs = useCallback(() => {
+    persistNotifications([])
+  }, [])
+
+  const unreadCount = notifications.filter(n => !n.read).length
+
+  // Combined feed = DB feed + local feed events
+  const combinedFeed = [...feedEvents.map(ev => ({
+    id: ev.id,
+    user: ev.user || 'System',
+    avatar: ev.userAvatar || ev.user?.charAt(0).toUpperCase() || 'S',
+    text: ev.text,
+    type: ev.type || 'system_update',
+    flair: 'system_update',
+    timestamp: ev.timestamp,
+    likes: 0,
+    comments: [],
+    image: null
+  })), ...feed].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+
+  const value = {
+    stays, missions, feed: combinedFeed, fund, destinations, loading,
+    discussions, messages, groupChats, notifications,
+    testMissions, testMissionApplications,
+    feedEvents,
+
+    submitStay, createPost, likePost, addComment,
+    startDiscussion, postToDiscussion,
+    createMission, joinMission, vouchUser,
+    sendMessage, sendGroupMessage,
+    applyToTestMission, updateTestMissionApplicationStatus,
+    importPastHistory, reportUser,
+    addFeedEvent, addNotification, markNotifRead, clearNotifs,
+    unreadCount
+  }
+
   return (
-    <DataContext.Provider value={{ 
-      stays, missions, feed, fund, destinations, loading,
-      submitStay, createPost, likePost, addComment
-    }}>
+    <DataContext.Provider value={value}>
       {children}
     </DataContext.Provider>
   )
