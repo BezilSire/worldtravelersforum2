@@ -13,6 +13,8 @@ import ExplorerProfile from './pages/ExplorerProfile.jsx'
 import DestinationDiscussion from './pages/DestinationDiscussion.jsx'
 import TestMissions from './pages/TestMissions.jsx'
 import Bookings from './pages/Bookings.jsx'
+import Privacy from './pages/Privacy.jsx'
+import Terms from './pages/Terms.jsx'
 import ProtectedRoute from './components/ProtectedRoute.jsx'
 
 export default function App() {
@@ -22,6 +24,8 @@ export default function App() {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/auth" element={<Auth />} />
+        <Route path="/privacy" element={<Privacy />} />
+        <Route path="/terms" element={<Terms />} />
         
         {/* Protected Routes */}
         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />

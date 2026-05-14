@@ -1,7 +1,7 @@
 import { useAuth } from '../context/AuthContext.jsx'
 import { useData } from '../context/DataContext.jsx'
 import { Link, Navigate } from 'react-router-dom'
-import { MapPin, Globe, Shield, Star, Calendar, ArrowRight, Compass, CheckCircle, History, X, Plus, Camera, AlertTriangle, Heart, Instagram, Youtube, Music2, Edit3 } from 'lucide-react'
+import { MapPin, Globe, Shield, Star, Calendar, ArrowRight, Compass, CheckCircle, History, X, Plus, Camera, AlertTriangle, Heart, Instagram, Youtube, Music2, Edit3, LifeBuoy, FileText } from 'lucide-react'
 import { useState, useRef } from 'react'
 
 export default function Profile() {
@@ -201,6 +201,27 @@ export default function Profile() {
         {/* Action */}
         <div style={{ textAlign: 'center', marginTop: 40 }}>
           <Link to="/claim" className="btn-primary"><Shield size={18} /> Claim Another Stay <ArrowRight size={16} /></Link>
+        </div>
+
+        {/* Support */}
+        <div className="glass-card" style={{ padding: 32, marginTop: 40 }}>
+          <h3 style={{ fontSize: '1.1rem', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <LifeBuoy size={18} style={{ color: 'var(--accent-teal)' }} /> Support
+          </h3>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', marginBottom: 12 }}>
+            Need help? Reach out to our support team and we'll get back to you.
+          </p>
+          <a href="mailto:support@worldtravelers.forum" style={{ color: 'var(--accent-gold)', fontSize: '0.95rem', fontWeight: 600, textDecoration: 'none' }}>
+            support@worldtravelers.forum
+          </a>
+          <div style={{ marginTop: 16, display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+            <Link to="/privacy" style={{ color: 'var(--text-muted)', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <FileText size={14} /> Privacy Policy
+            </Link>
+            <Link to="/terms" style={{ color: 'var(--text-muted)', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <FileText size={14} /> Terms & Conditions
+            </Link>
+          </div>
         </div>
       </div>
 

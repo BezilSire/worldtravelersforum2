@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
-import { Globe, MapPin, Shield, Users, ArrowRight, Compass, Mountain, Star } from 'lucide-react'
+import { Globe, MapPin, Shield, Users, ArrowRight, Compass, Mountain, Star, FileText } from 'lucide-react'
 
 export default function Home() {
   const { user } = useAuth()
@@ -41,7 +41,7 @@ export default function Home() {
               ) : (
                 <>
                   <Link to="/auth" className="btn-primary"><ArrowRight size={18} /> Join the Network — Free</Link>
-                  <Link to="/feed" className="btn-secondary"><Globe size={18} /> View Explorer Feed</Link>
+                  <Link to="/destinations" className="btn-secondary"><MapPin size={18} /> Explore Destinations</Link>
                 </>
               )}
             </div>
@@ -169,13 +169,23 @@ export default function Home() {
 
       {/* Footer */}
       <footer style={{ borderTop: '1px solid var(--border-subtle)', padding: '40px 0' }}>
-        <div className="container" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <Globe size={18} style={{ color: 'var(--accent-gold)' }} />
-            <span style={{ fontFamily: 'var(--font-display)', fontWeight: 600 }}>World Travelers Forum</span>
+        <div className="container" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <Globe size={18} style={{ color: 'var(--accent-gold)' }} />
+              <span style={{ fontFamily: 'var(--font-display)', fontWeight: 600 }}>World Travelers Forum</span>
+            </div>
+            <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+              Book hotels at <a href="https://cheaply.world" target="_blank" rel="noopener" style={{ color: 'var(--accent-teal)', textDecoration: 'underline' }}>cheaply.world</a> · Build your explorer identity here.
+            </div>
           </div>
-          <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-            Book hotels at <a href="https://cheaply.world" target="_blank" rel="noopener" style={{ color: 'var(--accent-teal)', textDecoration: 'underline' }}>cheaply.world</a> · Build your explorer identity here.
+          <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', fontSize: '0.85rem' }}>
+            <Link to="/privacy" style={{ color: 'var(--text-muted)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <FileText size={14} /> Privacy Policy
+            </Link>
+            <Link to="/terms" style={{ color: 'var(--text-muted)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <FileText size={14} /> Terms & Conditions
+            </Link>
           </div>
           <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>© 2026 World Travelers Forum</div>
         </div>
