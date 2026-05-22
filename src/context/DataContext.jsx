@@ -191,14 +191,6 @@ export function DataProvider({ children }) {
     fetchFeed()
   }, [fetchFeed])
 
-  useEffect(() => {
-    setFeedEvents(prev => {
-      const filtered = prev.filter(ev => ev.type !== 'user_post')
-      saveJson('wtf_feed_events', filtered)
-      return filtered
-    })
-  }, [])
-
   // Initial Data Load
   useEffect(() => {
     async function initData() {
@@ -309,9 +301,9 @@ export function DataProvider({ children }) {
   const createPost = async (postData) => {
     if (!user) return { success: false, error: new Error('Not authenticated') }
 
-    const tempId = 'tmp_' + Date.now()
-    const localPost = {
-      id: tempId,
+    const postId = genId()
+    const newPost = {
+      id: postId,
       userId: user.id,
       user: postData.user || user.full_name || 'Explorer',
       avatar: postData.avatar || user.avatar_url || 'E',
@@ -323,30 +315,29 @@ export function DataProvider({ children }) {
       type: 'user_post',
       comments: []
     }
-    setFeed(prev => [localPost, ...prev])
 
-    let error
+    setFeed(prev => [newPost, ...prev])
+    setFeedEvents(prev => {
+      const next = [newPost, ...prev]
+      saveJson('wtf_feed_events', next)
+      return next
+    })
+
     try {
-      const res = await insforge.database
+      const { error } = await insforge.database
         .from('posts')
         .insert({ user_id: user.id, text: postData.text })
         .select()
-      error = res.error
+      if (!error) {
+        try { await fetchFeed() } catch (_) {}
+      } else {
+        console.error('DB insert failed (post kept locally):', error)
+      }
     } catch (e) {
-      error = e
+      console.error('DB insert threw (post kept locally):', e)
     }
 
-    if (!error) {
-      try {
-        await fetchFeed()
-      } catch (e) {
-        console.error('fetchFeed failed after insert:', e)
-      }
-    } else {
-      console.error('Failed to create post:', error)
-      setFeed(prev => prev.filter(p => p.id !== tempId))
-    }
-    return { success: !error, error }
+    return { success: true }
   }
 
   const updateFeedItem = useCallback((postId, updater) => {
@@ -786,14 +777,14 @@ export function DataProvider({ children }) {
     id: ev.id,
     userId: ev.userId,
     user: ev.user || 'System',
-    avatar: ev.userAvatar || ev.user?.charAt(0).toUpperCase() || 'S',
+    avatar: ev.avatar || ev.user?.charAt(0).toUpperCase() || 'S',
     text: ev.text,
     type: ev.type || 'system_update',
-    flair: 'system_update',
+    flair: ev.flair || 'system_update',
     timestamp: ev.timestamp,
-    likes: 0,
-    comments: [],
-    image: null
+    likes: ev.likes ?? 0,
+    comments: ev.comments || [],
+    image: ev.image || null
   })), ...feed].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
 
   const value = {
