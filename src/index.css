@@ -455,6 +455,18 @@ textarea.form-input { resize: vertical; min-height: 100px; }
     padding: 32px 20px;
     z-index: 100;
   }
+  .sidebar-container > div:first-child {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+  }
+  .sidebar-container > div:first-child::-webkit-scrollbar {
+    width: 4px;
+  }
+  .sidebar-container > div:first-child::-webkit-scrollbar-thumb {
+    background: var(--border-subtle);
+    border-radius: 2px;
+  }
   .main-content {
     flex: 1;
     margin-left: 260px;
