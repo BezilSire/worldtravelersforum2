@@ -62,10 +62,10 @@ export default function Feed() {
     setExpandedComments(prev => ({ ...prev, [postId]: !prev[postId] }))
   }
 
-  const handleCreatePost = (e) => {
+  const handleCreatePost = async (e) => {
     e.preventDefault()
     if (!postText.trim() || !user) return
-    createPost({
+    const result = await createPost({
       user: user.full_name,
       avatar: user.avatar_url || user.full_name?.charAt(0).toUpperCase(),
       text: postText,
@@ -73,9 +73,13 @@ export default function Feed() {
       flair: postFlair,
       country: ''
     })
-    setPostText('')
-    setPostImage('')
-    setPostFlair('note')
+    if (result?.success) {
+      setPostText('')
+      setPostImage('')
+      setPostFlair('note')
+    } else {
+      alert('Failed to create post: ' + (result?.error?.message || 'Unknown error'))
+    }
   }
 
   const handleComment = (e, postId) => {

@@ -274,17 +274,35 @@ export function DataProvider({ children }) {
   }
 
   const createPost = async (postData) => {
-    if (!user) return
+    if (!user) return { success: false, error: new Error('Not authenticated') }
+
+    const tempId = 'tmp_' + Date.now()
+    const localPost = {
+      id: tempId,
+      userId: user.id,
+      user: postData.user || user.full_name || 'Explorer',
+      avatar: postData.avatar || user.avatar_url || 'E',
+      text: postData.text,
+      image: postData.image || null,
+      flair: postData.flair || 'note',
+      likes: 0,
+      timestamp: new Date().toISOString(),
+      type: 'user_post',
+      comments: []
+    }
+    setFeed(prev => [localPost, ...prev])
+
     const { error } = await insforge.database.from('posts').insert({
       user_id: user.id,
       text: postData.text,
-      image_url: postData.image,
-      flair: postData.flair
+      image_url: postData.image || null,
+      flair: postData.flair || 'note'
     })
     if (!error) {
       await fetchFeed()
     } else {
       console.error('Failed to create post:', error)
+      setFeed(prev => prev.filter(p => p.id !== tempId))
     }
     return { success: !error, error }
   }

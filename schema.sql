@@ -85,6 +85,8 @@ drop policy if exists "Posts are viewable by everyone." on public.posts;
 create policy "Posts are viewable by everyone." on public.posts for select using (true);
 drop policy if exists "Users can create posts." on public.posts;
 create policy "Users can create posts." on public.posts for insert with check (auth.uid() = user_id);
+drop policy if exists "Users can update own posts." on public.posts;
+create policy "Users can update own posts." on public.posts for update using (auth.uid() = user_id);
 drop policy if exists "Users can delete own posts." on public.posts;
 create policy "Users can delete own posts." on public.posts for delete using (auth.uid() = user_id);
 
