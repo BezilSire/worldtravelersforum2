@@ -1,4 +1,5 @@
-import { createContext, useContext, useState, useEffect } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { insforge } from '../lib/insforge.js'
 
 const AuthContext = createContext({ user: null, loading: true })
@@ -6,45 +7,78 @@ const AuthContext = createContext({ user: null, loading: true })
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
+  const navigate = useNavigate()
+  const location = useLocation()
+
+  const hydrateUser = useCallback(async () => {
+    const { data: authData } = await insforge.auth.getCurrentUser()
+    
+    if (authData?.user) {
+      // Fetch profile
+      let { data: profile } = await insforge.database
+        .from('profiles')
+        .select('*')
+        .eq('id', authData.user.id)
+        .single()
+      
+      if (!profile) {
+        const name = authData.user.user_metadata?.full_name || authData.user.user_metadata?.name || 'Explorer'
+        const newProfile = {
+          id: authData.user.id,
+          full_name: name,
+          avatar_url: name.charAt(0).toUpperCase(),
+          joined_date: new Date().toISOString().split('T')[0]
+        }
+        await insforge.database.from('profiles').insert(newProfile)
+        profile = newProfile
+      }
+      
+      setUser({ ...authData.user, ...profile })
+      return true
+    } else {
+      setUser(null)
+      return false
+    }
+  }, [])
 
   useEffect(() => {
     let cancelled = false
 
-    async function hydrateAuth() {
-      const { data: authData, error: authError } = await insforge.auth.getCurrentUser()
-      if (cancelled) return
-      
-      if (authData?.user) {
-        // Fetch profile
-        let { data: profile } = await insforge.database
-          .from('profiles')
-          .select('*')
-          .eq('id', authData.user.id)
-          .single()
-        
-        if (!profile) {
-          const name = authData.user.user_metadata?.full_name || authData.user.user_metadata?.name || 'Explorer'
-          const newProfile = {
-            id: authData.user.id,
-            full_name: name,
-            avatar_url: name.charAt(0).toUpperCase(),
-            joined_date: new Date().toISOString().split('T')[0]
-          }
-          await insforge.database.from('profiles').insert(newProfile)
-          profile = newProfile
+    async function initAuth() {
+      // Check if this is an OAuth callback (insforge_code in URL)
+      const params = new URLSearchParams(window.location.search)
+      const oauthCode = params.get('insforge_code')
+
+      if (oauthCode) {
+        try {
+          // Exchange the OAuth code for a session
+          await insforge.auth.exchangeOAuthCode(oauthCode)
+          // Clean the URL
+          const cleanUrl = window.location.pathname
+          window.history.replaceState({}, '', cleanUrl)
+        } catch (err) {
+          console.error('OAuth code exchange failed:', err)
         }
-        
-        setUser({ ...authData.user, ...profile })
-      } else {
-        setUser(null)
       }
+
+      if (cancelled) return
+
+      // Now hydrate auth state (will pick up session from exchange above)
+      const hasUser = await hydrateUser()
+      if (cancelled) return
+
       setLoading(false)
+
+      // If we just completed OAuth, navigate to profile
+      if (oauthCode && hasUser) {
+        navigate('/profile', { replace: true })
+      }
     }
 
-    void hydrateAuth()
+    void initAuth()
 
     return () => { cancelled = true }
-  }, [])
+  }, [hydrateUser, navigate])
 
   const login = async (email, password) => {
     const { data, error } = await insforge.auth.signInWithPassword({ email, password })
@@ -88,7 +122,7 @@ export function AuthProvider({ children }) {
   const loginWithGoogle = async () => {
     const { error } = await insforge.auth.signInWithOAuth({
       provider: 'google',
-      redirectTo: window.location.origin + '/profile'
+      redirectTo: window.location.origin + '/auth'
     })
     return { success: !error, error }
   }

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Navigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
 import { Globe, ArrowRight, Key, Shield } from 'lucide-react'
 
@@ -13,8 +13,13 @@ export default function Auth() {
   const [msg, setMsg] = useState('')
   const [loading, setLoading] = useState(false)
   
-  const { login, signup, loginWithGoogle, sendResetEmail, resetPasswordWithCode } = useAuth()
+  const { user, loading: authLoading, login, signup, loginWithGoogle, sendResetEmail, resetPasswordWithCode } = useAuth()
   const navigate = useNavigate()
+
+  // If already logged in, redirect to profile
+  if (!authLoading && user) {
+    return <Navigate to="/profile" replace />
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault()

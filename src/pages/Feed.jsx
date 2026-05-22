@@ -129,10 +129,10 @@ export default function Feed() {
 
   return (
     <div className="page" style={{ background: 'var(--bg-main)' }}>
-      <div className="container" style={{ paddingTop: 40, paddingBottom: 80, display: 'grid', gridTemplateColumns: '1fr 300px', gap: 60, alignItems: 'start' }}>
+      <div className="container two-column-layout" style={{ paddingTop: 40, paddingBottom: 80 }}>
         
         {/* Main Feed Column */}
-        <div style={{ maxWidth: 650 }}>
+        <div style={{ width: '100%' }}>
           <div className="animate-fade-up" style={{ marginBottom: 32 }}>
             <h1 style={{ fontSize: '2.4rem', fontFamily: 'var(--font-serif)', fontWeight: 600, marginBottom: 12 }}>Network <span className="text-gradient">Notes</span></h1>
             <div style={{ display: 'flex', gap: 24, borderBottom: '1px solid var(--border-subtle)' }}>

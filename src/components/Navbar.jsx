@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
-import { Globe, Menu, X, LogOut, User, MessageSquare, MapPin, Bell } from 'lucide-react'
+import { Globe, Menu, X, LogOut, User, MessageSquare, MapPin, Bell, Home, Compass, Mountain } from 'lucide-react'
 import { useData } from '../context/DataContext.jsx'
 import Logo from './Logo.jsx'
 
@@ -35,12 +35,14 @@ export default function Navbar() {
 
   return (
     <>
+      {/* Top Header */}
       <nav className="nav" id="main-nav">
         <div className="nav-inner">
           <Link to="/" className="nav-logo" style={{ display: 'flex', alignItems: 'center' }}>
             <Logo style={{ height: '48px', width: 'auto' }} />
           </Link>
 
+          {/* Desktop Navigation Links */}
           <div className="nav-links">
             {links.map(link => (
               <Link key={link.to} to={link.to} className={`nav-link ${isActive(link.to) ? 'active' : ''}`}>
@@ -49,7 +51,9 @@ export default function Navbar() {
             ))}
           </div>
 
+          {/* Actions */}
           <div className="nav-actions">
+            {/* Desktop Only Actions */}
             {user ? (
               <>
                 <Link to="/profile" className="nav-link" title="Notifications" style={{ position: 'relative' }}>
@@ -60,7 +64,7 @@ export default function Navbar() {
                       background: 'var(--accent-gold)', color: '#000',
                       fontSize: '0.6rem', fontWeight: 700,
                       width: 18, height: 18, borderRadius: '50%',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center'
+                      display: 'flex', alignItems: 'center', justifycontent: 'center'
                     }}>
                       {unreadCount > 9 ? '9+' : unreadCount}
                     </span>
@@ -73,10 +77,10 @@ export default function Navbar() {
                   Claim Stay
                 </Link>
                 <Link to="/profile" className="nav-link" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                   <div style={{
+                  <div style={{
                     width: 32, height: 32, borderRadius: '50%',
                     background: 'var(--gradient-gold)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    display: 'flex', alignItems: 'center', justifycontent: 'center',
                     fontSize: '0.75rem', fontWeight: 700, color: '#0a0b0f',
                     overflow: 'hidden'
                   }}>
@@ -94,6 +98,15 @@ export default function Navbar() {
             ) : (
               <Link to="/auth" className="btn-primary btn-small">Join Network — Free</Link>
             )}
+
+            {/* Mobile Only Action Icons (Header Right) */}
+            {user && (
+              <Link to="/messages" className="nav-link mobile-top-action" title="Messages" style={{ display: 'none' }}>
+                <MessageSquare size={20} />
+              </Link>
+            )}
+
+            {/* Hamburger Toggle (Mobile Only) for the lesser used links */}
             <button className="nav-mobile-toggle" onClick={() => setMobileOpen(!mobileOpen)}>
               {mobileOpen ? <X size={24} /> : <Menu size={24} />}
             </button>
@@ -101,33 +114,91 @@ export default function Navbar() {
         </div>
       </nav>
 
+      {/* Mobile Drawer Menu (More Links) */}
       {mobileOpen && (
         <div className="mobile-menu" onClick={() => setMobileOpen(false)}>
-          {links.map(link => (
-            <Link key={link.to} to={link.to} className={`nav-link ${isActive(link.to) ? 'active' : ''}`}
-              onClick={() => setMobileOpen(false)}>
-              {link.label}
-            </Link>
-          ))}
-          {user ? (
-            <>
-              <Link to="/profile" className="nav-link" onClick={() => setMobileOpen(false)}>
-                <User size={18} style={{ marginRight: 8 }} /> Profile
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+            <span style={{ fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-muted)', marginBottom: 8 }}>
+              Network Utilities
+            </span>
+            {user ? (
+              <>
+                <Link to="/claim" className="nav-link" onClick={() => setMobileOpen(false)}>
+                  Claim Verified Stay
+                </Link>
+                <Link to="/test-missions" className="nav-link" onClick={() => setMobileOpen(false)}>
+                  Test Missions
+                </Link>
+                <Link to="/fund" className="nav-link" onClick={() => setMobileOpen(false)}>
+                  Explorer Fund
+                </Link>
+                <Link to="/bookings" className="nav-link" onClick={() => setMobileOpen(false)}>
+                  My Bookings
+                </Link>
+                <div style={{ height: '1px', width: '120px', background: 'var(--border-subtle)', margin: '8px 0' }} />
+                <button onClick={handleLogout} className="nav-link" style={{ color: 'var(--accent-gold)' }}>
+                  <LogOut size={18} style={{ marginRight: 8 }} /> Logout
+                </button>
+              </>
+            ) : (
+              <Link to="/auth" className="btn-primary" onClick={() => setMobileOpen(false)}>
+                Join Network — Free
               </Link>
-              <Link to="/claim" className="nav-link" onClick={() => setMobileOpen(false)}>
-                Claim Verified Stay
-              </Link>
-              <button onClick={handleLogout} className="nav-link">
-                <LogOut size={18} style={{ marginRight: 8 }} /> Logout
-              </button>
-            </>
-          ) : (
-            <Link to="/auth" className="btn-primary" onClick={() => setMobileOpen(false)}>
-              Join Network — Free
-            </Link>
-          )}
+            )}
+          </div>
         </div>
       )}
+
+      {/* Mobile Bottom Tab Bar */}
+      <div className="bottom-nav">
+        <Link to="/" className={`bottom-nav-item ${isActive('/') ? 'active' : ''}`}>
+          <Home size={20} />
+          <span>Home</span>
+        </Link>
+        
+        {user ? (
+          <>
+            <Link to="/feed" className={`bottom-nav-item ${isActive('/feed') ? 'active' : ''}`}>
+              <Compass size={20} />
+              <span>Feed</span>
+            </Link>
+            
+            <Link to="/destinations" className={`bottom-nav-item ${isActive('/destinations') ? 'active' : ''}`}>
+              <MapPin size={20} />
+              <span>Explore</span>
+            </Link>
+            
+            <Link to="/missions" className={`bottom-nav-item ${isActive('/missions') ? 'active' : ''}`}>
+              <Mountain size={20} />
+              <span>Missions</span>
+            </Link>
+            
+            <Link to="/profile" className={`bottom-nav-item ${isActive('/profile') ? 'active' : ''}`}>
+              <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                <User size={20} />
+                {unreadCount > 0 && (
+                  <span className="bottom-nav-badge">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
+              </div>
+              <span>Profile</span>
+            </Link>
+          </>
+        ) : (
+          <>
+            <Link to="/destinations" className={`bottom-nav-item ${isActive('/destinations') ? 'active' : ''}`}>
+              <MapPin size={20} />
+              <span>Explore</span>
+            </Link>
+            
+            <Link to="/auth" className={`bottom-nav-item ${isActive('/auth') ? 'active' : ''}`}>
+              <User size={20} />
+              <span>Join</span>
+            </Link>
+          </>
+        )}
+      </div>
     </>
   )
 }
