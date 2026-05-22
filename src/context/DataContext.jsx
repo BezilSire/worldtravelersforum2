@@ -87,6 +87,8 @@ export function DataProvider({ children }) {
     }
   ]))
 
+  const [userVouches, setUserVouches] = useState(loadJson('wtf_user_vouches', {}))
+
   const persistMessages = (v) => { setMessages(v); saveJson('wtf_messages', v) }
   const persistDiscussions = (v) => { setDiscussions(v); saveJson('wtf_discussions', v) }
   const persistGroupChats = (v) => { setGroupChats(v); saveJson('wtf_group_chats', v) }
@@ -308,25 +310,21 @@ export function DataProvider({ children }) {
   const likedPosts = useRef({})
 
   const likePost = async (postId) => {
-    if (likedPosts.current[postId]) return
+    if (!postId || likedPosts.current[postId]) return
     likedPosts.current[postId] = true
 
-    let newCount = 0
-    setFeed(prev => {
-      const item = prev.find(p => p.id === postId)
-      newCount = (item?.likes || 0) + 1
-      return prev.map(p => p.id === postId ? { ...p, likes: newCount } : p)
-    })
+    setFeed(prev => prev.map(p => p.id === postId ? { ...p, likes: (p.likes || 0) + 1 } : p))
 
-    const { error } = await insforge.database
-      .from('posts')
-      .update({ likes_count: newCount })
-      .eq('id', postId)
-
+    const { error } = await insforge.database.rpc('increment_likes', { post_id: postId })
     if (error) {
-      likedPosts.current[postId] = false
-      setFeed(prev => prev.map(p => p.id === postId ? { ...p, likes: Math.max(0, (p.likes || 0) - 1) } : p))
-      console.error('Failed to like post:', error)
+      console.error('Like RPC failed, trying direct update:', error)
+      const { error: updateError } = await insforge.database
+        .from('posts')
+        .update({ likes_count: (feed.find(p => p.id === postId)?.likes || 0) + 1 })
+        .eq('id', postId)
+      if (updateError) {
+        console.error('Direct like update also failed:', updateError)
+      }
     }
   }
 
@@ -495,6 +493,11 @@ export function DataProvider({ children }) {
       title: 'You received a vouch!',
       body: `${fromName} vouched for you.`,
       link: '/profile'
+    })
+    setUserVouches(prev => {
+      const next = { ...prev, [toId]: (prev[toId] || 0) + 1 }
+      saveJson('wtf_user_vouches', next)
+      return next
     })
   }, [])
 
@@ -704,7 +707,7 @@ export function DataProvider({ children }) {
     stays, missions, feed: combinedFeed, fund, destinations, loading,
     discussions, messages, groupChats, notifications,
     testMissions, testMissionApplications,
-    feedEvents,
+    feedEvents, userVouches,
 
     submitStay, createPost, deletePost, repostPost, likePost, addComment,
     startDiscussion, postToDiscussion,

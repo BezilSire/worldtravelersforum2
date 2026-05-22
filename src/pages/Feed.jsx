@@ -286,8 +286,7 @@ export default function Feed() {
                       </div>
                     )}
 
-                    {/* Interactions - only for user posts and reposts */}
-                    {(item.type === 'user_post' || item.flair === 'repost') && (
+                    {/* Interactions */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: 24, marginTop: 16 }}>
                       <button 
                         onClick={() => likePost(item.id)}
@@ -301,7 +300,7 @@ export default function Feed() {
                       >
                         <MessageSquare size={18} color={expandedComments[item.id] ? 'var(--accent-gold)' : 'currentColor'} /> {item.comments?.length || 0}
                       </button>
-                      {item.userId === user?.id && (
+                      {item.userId && item.userId === user?.id && (
                         <button 
                           onClick={() => { if (confirm('Delete this post?')) deletePost(item.id) }}
                           style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.9rem', color: 'var(--accent-rose)', background: 'none', border: 'none', cursor: 'pointer', transition: 'all 0.2s', marginLeft: 'auto' }}
@@ -310,7 +309,7 @@ export default function Feed() {
                           <Trash2 size={16} />
                         </button>
                       )}
-                      {user && item.userId !== user?.id && (
+                      {user && item.userId && item.userId !== user?.id && (
                         <button 
                           onClick={() => repostPost({ text: item.text, originalAuthor: item.user })}
                           style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.9rem', color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', transition: 'all 0.2s' }}
@@ -320,7 +319,6 @@ export default function Feed() {
                         </button>
                       )}
                     </div>
-                    )}
 
                     {/* Professional Comment Section */}
                     {expandedComments[item.id] && (

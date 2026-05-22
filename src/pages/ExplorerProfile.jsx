@@ -8,6 +8,7 @@ export default function ExplorerProfile() {
   const { id } = useParams()
   const { user: currentUser } = useAuth()
   const { stays, vouchUser, reportUser, userVouches } = useData()
+  const vouchesMap = userVouches || {}
   const [vouched, setVouched] = useState(false)
 
   // Simulate user data for the ID
@@ -22,7 +23,7 @@ export default function ExplorerProfile() {
     levelTitle: 'Navigator',
     countriesCount: 8,
     staysCount: 12,
-    vouchesCount: 5 + (userVouches[id] || 0),
+    vouchesCount: 5 + (vouchesMap[id] || 0),
     missionsCount: 2,
     countries: ['Thailand', 'Vietnam', 'Indonesia', 'Malaysia'],
   }
