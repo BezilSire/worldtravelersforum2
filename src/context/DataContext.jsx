@@ -292,12 +292,17 @@ export function DataProvider({ children }) {
     }
     setFeed(prev => [localPost, ...prev])
 
-    const { error } = await insforge.database.from('posts').insert({
-      user_id: user.id,
-      text: postData.text,
-      image_url: postData.image || null,
-      flair: postData.flair || 'note'
-    })
+    let error
+    try {
+      const res = await insforge.database
+        .from('posts')
+        .insert({ user_id: user.id, text: postData.text })
+        .select()
+      error = res.error
+    } catch (e) {
+      error = e
+    }
+
     if (!error) {
       await fetchFeed()
     } else {
