@@ -327,7 +327,6 @@ export function DataProvider({ children }) {
       const { error } = await insforge.database
         .from('posts')
         .insert({ user_id: user.id, text: postData.text })
-        .select()
       if (!error) {
         try { await fetchFeed() } catch (_) {}
       } else {
