@@ -120,40 +120,69 @@ export function DataProvider({ children }) {
   // Fetch Feed
   const fetchFeed = useCallback(async () => {
     if (!user) { setFeed([]); return }
+
     const { data, error } = await insforge.database
       .from('posts')
-      .select(`
-        *,
-        profiles:user_id (full_name, avatar_url),
-        comments (
-          *,
-          profiles:user_id (full_name, avatar_url)
-        )
-      `)
+      .select('*')
       .order('timestamp', { ascending: false })
 
-    if (!error) {
+    if (!error && data) {
+      const userIds = [...new Set(data.map(p => p.user_id))]
+      const { data: profiles } = await insforge.database
+        .from('profiles')
+        .select('id, full_name, avatar_url')
+        .in('id', userIds)
+
+      const profileMap = Object.fromEntries(
+        (profiles || []).map(p => [p.id, p])
+      )
+
+      const postIds = data.map(p => p.id)
+      const { data: allComments } = await insforge.database
+        .from('comments')
+        .select('*')
+        .in('post_id', postIds.length ? postIds : ['__none__'])
+        .order('timestamp', { ascending: true })
+
+      const commentsByPost = {}
+      if (allComments) {
+        const commentUserIds = [...new Set(allComments.map(c => c.user_id))]
+        const { data: commentProfiles } = await insforge.database
+          .from('profiles')
+          .select('id, full_name, avatar_url')
+          .in('id', commentUserIds)
+
+        const commentProfileMap = Object.fromEntries(
+          (commentProfiles || []).map(p => [p.id, p])
+        )
+
+        for (const c of allComments) {
+          if (!commentsByPost[c.post_id]) commentsByPost[c.post_id] = []
+          commentsByPost[c.post_id].push({
+            id: c.id,
+            userId: c.user_id,
+            user: commentProfileMap[c.user_id]?.full_name || 'Explorer',
+            avatar: commentProfileMap[c.user_id]?.avatar_url || 'E',
+            text: c.text,
+            timestamp: c.timestamp
+          })
+        }
+      }
+
       setFeed(data.map(post => ({
         id: post.id,
         userId: post.user_id,
-        user: post.profiles?.full_name || 'Network HQ',
-        avatar: post.profiles?.avatar_url || 'HQ',
+        user: profileMap[post.user_id]?.full_name || 'Explorer',
+        avatar: profileMap[post.user_id]?.avatar_url || 'E',
         text: post.text,
         image: post.image_url,
         flair: post.flair,
         likes: post.likes_count,
         timestamp: post.timestamp,
         type: post.flair === 'system_update' ? post.flair : 'user_post',
-        comments: post.comments?.map(c => ({
-          id: c.id,
-          userId: c.user_id,
-          user: c.profiles?.full_name || 'Explorer',
-          avatar: c.profiles?.avatar_url || 'E',
-          text: c.text,
-          timestamp: c.timestamp
-        })) || []
+        comments: commentsByPost[post.id] || []
       })))
-    } else {
+    } else if (error) {
       console.error('Failed to fetch feed:', error)
     }
   }, [user])
@@ -269,7 +298,11 @@ export function DataProvider({ children }) {
       flair: 'system_update'
     })
     if (!error) {
-      await fetchFeed()
+      try {
+        await fetchFeed()
+      } catch (e) {
+        console.error('fetchFeed failed after stay event:', e)
+      }
     }
   }
 
@@ -304,7 +337,11 @@ export function DataProvider({ children }) {
     }
 
     if (!error) {
-      await fetchFeed()
+      try {
+        await fetchFeed()
+      } catch (e) {
+        console.error('fetchFeed failed after insert:', e)
+      }
     } else {
       console.error('Failed to create post:', error)
       setFeed(prev => prev.filter(p => p.id !== tempId))
