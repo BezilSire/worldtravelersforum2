@@ -310,13 +310,19 @@ export function DataProvider({ children }) {
   const likePost = async (postId) => {
     if (likedPosts.current[postId]) return
     likedPosts.current[postId] = true
-    setFeed(prev => prev.map(p => p.id === postId ? { ...p, likes: (p.likes || 0) + 1 } : p))
-    const currentItem = feed.find(p => p.id === postId)
-    const currentLikes = currentItem?.likes || 0
+
+    let newCount = 0
+    setFeed(prev => {
+      const item = prev.find(p => p.id === postId)
+      newCount = (item?.likes || 0) + 1
+      return prev.map(p => p.id === postId ? { ...p, likes: newCount } : p)
+    })
+
     const { error } = await insforge.database
       .from('posts')
-      .update({ likes_count: currentLikes + 1 })
+      .update({ likes_count: newCount })
       .eq('id', postId)
+
     if (error) {
       likedPosts.current[postId] = false
       setFeed(prev => prev.map(p => p.id === postId ? { ...p, likes: Math.max(0, (p.likes || 0) - 1) } : p))

@@ -286,7 +286,8 @@ export default function Feed() {
                       </div>
                     )}
 
-                    {/* Interactions */}
+                    {/* Interactions - only for user posts and reposts */}
+                    {(item.type === 'user_post' || item.flair === 'repost') && (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 24, marginTop: 16 }}>
                       <button 
                         onClick={() => likePost(item.id)}
@@ -300,7 +301,7 @@ export default function Feed() {
                       >
                         <MessageSquare size={18} color={expandedComments[item.id] ? 'var(--accent-gold)' : 'currentColor'} /> {item.comments?.length || 0}
                       </button>
-                      {item.userId && item.userId === user?.id && (
+                      {item.userId === user?.id && (
                         <button 
                           onClick={() => { if (confirm('Delete this post?')) deletePost(item.id) }}
                           style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.9rem', color: 'var(--accent-rose)', background: 'none', border: 'none', cursor: 'pointer', transition: 'all 0.2s', marginLeft: 'auto' }}
@@ -319,6 +320,7 @@ export default function Feed() {
                         </button>
                       )}
                     </div>
+                    )}
 
                     {/* Professional Comment Section */}
                     {expandedComments[item.id] && (
