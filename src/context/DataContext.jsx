@@ -91,62 +91,72 @@ export function DataProvider({ children }) {
   const persistDiscussions = (v) => { setDiscussions(v); saveJson('wtf_discussions', v) }
   const persistGroupChats = (v) => { setGroupChats(v); saveJson('wtf_group_chats', v) }
   const persistNotifications = (v) => { setNotifications(v); saveJson('wtf_notifications', v) }
-  const persistFeedEvents = (v) => { setFeedEvents(v); saveJson('wtf_feed_events', v) }
   const persistTestApplications = (v) => { setTestMissionApplications(v); saveJson('wtf_test_applications', v) }
 
   const isAdmin = user?.email === ADMIN_EMAIL
 
   const addFeedEvent = useCallback((event) => {
     const e = { id: genId(), timestamp: new Date().toISOString(), ...event }
-    persistFeedEvents(prev => [e, ...prev].slice(0, 200))
+    setFeedEvents(prev => {
+      const next = [e, ...prev].slice(0, 200)
+      saveJson('wtf_feed_events', next)
+      return next
+    })
     return e
   }, [])
 
   const addNotification = useCallback((userId, notif) => {
     const n = { id: genId(), timestamp: new Date().toISOString(), read: false, ...notif }
-    persistNotifications(prev => [n, ...prev])
+    setNotifications(prev => {
+      const next = [n, ...prev]
+      saveJson('wtf_notifications', next)
+      return next
+    })
     return n
   }, [])
 
   // Fetch Feed
-  useEffect(() => {
-    async function fetchFeed() {
-      const { data, error } = await insforge.database
-        .from('posts')
-        .select(`
+  const fetchFeed = useCallback(async () => {
+    if (!user) { setFeed([]); return }
+    const { data, error } = await insforge.database
+      .from('posts')
+      .select(`
+        *,
+        profiles:user_id (full_name, avatar_url),
+        comments (
           *,
-          profiles:user_id (full_name, avatar_url),
-          comments (
-            *,
-            profiles:user_id (full_name, avatar_url)
-          )
-        `)
-        .order('timestamp', { ascending: false })
+          profiles:user_id (full_name, avatar_url)
+        )
+      `)
+      .order('timestamp', { ascending: false })
 
-      if (!error) {
-        setFeed(data.map(post => ({
-          id: post.id,
-          user: post.profiles?.full_name || 'Network HQ',
-          avatar: post.profiles?.avatar_url || 'HQ',
-          text: post.text,
-          image: post.image_url,
-          flair: post.flair,
-          likes: post.likes_count,
-          timestamp: post.timestamp,
-          type: post.flair === 'system_update' ? post.flair : 'user_post',
-          comments: post.comments?.map(c => ({
-            id: c.id,
-            user: c.profiles?.full_name || 'Explorer',
-            avatar: c.profiles?.avatar_url || 'E',
-            text: c.text,
-            timestamp: c.timestamp
-          })) || []
-        })))
-      }
+    if (!error) {
+      setFeed(data.map(post => ({
+        id: post.id,
+        user: post.profiles?.full_name || 'Network HQ',
+        avatar: post.profiles?.avatar_url || 'HQ',
+        text: post.text,
+        image: post.image_url,
+        flair: post.flair,
+        likes: post.likes_count,
+        timestamp: post.timestamp,
+        type: post.flair === 'system_update' ? post.flair : 'user_post',
+        comments: post.comments?.map(c => ({
+          id: c.id,
+          user: c.profiles?.full_name || 'Explorer',
+          avatar: c.profiles?.avatar_url || 'E',
+          text: c.text,
+          timestamp: c.timestamp
+        })) || []
+      })))
+    } else {
+      console.error('Failed to fetch feed:', error)
     }
+  }, [user])
 
+  useEffect(() => {
     fetchFeed()
-  }, [])
+  }, [fetchFeed])
 
   // Initial Data Load
   useEffect(() => {
@@ -272,8 +282,11 @@ export function DataProvider({ children }) {
         text: postData.text,
         flair: postData.flair
       })
-      window.location.reload()
+      await fetchFeed()
+    } else {
+      console.error('Failed to create post:', error)
     }
+    return { success: !error, error }
   }
 
   const likePost = async (postId) => {
@@ -297,7 +310,11 @@ export function DataProvider({ children }) {
       if (prev.find(d => d.id === id)) return prev
       return [{ id, name: countryName, country: countryName, staysCount: 0, explorers: 1, discussionsCount: 0, description: `Coordination hub for ${countryName}.` }, ...prev]
     })
-    persistDiscussions(prev => ({ ...prev, [id]: [] }))
+    setDiscussions(prev => {
+      const next = { ...prev, [id]: [] }
+      saveJson('wtf_discussions', next)
+      return next
+    })
     if (user) {
       addFeedEvent({
         type: 'discussion_started',
@@ -319,9 +336,11 @@ export function DataProvider({ children }) {
       parentId: msg.parentId || null,
       timestamp: new Date().toISOString()
     }
-    persistDiscussions(prev => {
+    setDiscussions(prev => {
       const existing = prev[destId] || []
-      return { ...prev, [destId]: [...existing, post] }
+      const next = { ...prev, [destId]: [...existing, post] }
+      saveJson('wtf_discussions', next)
+      return next
     })
   }, [user])
 
@@ -380,7 +399,11 @@ export function DataProvider({ children }) {
       participants: [user.id],
       messages: []
     }
-    persistGroupChats(prev => [...prev, newChat])
+    setGroupChats(prev => {
+      const next = [...prev, newChat]
+      saveJson('wtf_group_chats', next)
+      return next
+    })
   }, [user])
 
   const joinMission = useCallback((missionId) => {
@@ -405,12 +428,16 @@ export function DataProvider({ children }) {
       text: `joined mission`
     })
     // Add user to mission group chat
-    persistGroupChats(prev => prev.map(gc => {
-      if (gc.missionId === missionId && !gc.participants.includes(user.id)) {
-        return { ...gc, participants: [...gc.participants, user.id] }
-      }
-      return gc
-    }))
+    setGroupChats(prev => {
+      const next = prev.map(gc => {
+        if (gc.missionId === missionId && !gc.participants.includes(user.id)) {
+          return { ...gc, participants: [...gc.participants, user.id] }
+        }
+        return gc
+      })
+      saveJson('wtf_group_chats', next)
+      return next
+    })
     addNotification(user.id, {
       type: 'mission_joined',
       title: 'Mission Joined',
@@ -444,7 +471,11 @@ export function DataProvider({ children }) {
       text,
       timestamp: new Date().toISOString()
     }
-    persistMessages(prev => [...prev, msg])
+    setMessages(prev => {
+      const next = [...prev, msg]
+      saveJson('wtf_messages', next)
+      return next
+    })
   }, [])
 
   const sendGroupMessage = useCallback((chatId, { from, text }) => {
@@ -454,10 +485,14 @@ export function DataProvider({ children }) {
       text,
       timestamp: new Date().toISOString()
     }
-    persistGroupChats(prev => prev.map(gc => {
-      if (gc.id !== chatId) return gc
-      return { ...gc, messages: [...(gc.messages || []), msg] }
-    }))
+    setGroupChats(prev => {
+      const next = prev.map(gc => {
+        if (gc.id !== chatId) return gc
+        return { ...gc, messages: [...(gc.messages || []), msg] }
+      })
+      saveJson('wtf_group_chats', next)
+      return next
+    })
   }, [])
 
   // --- Test Missions ---
@@ -469,7 +504,11 @@ export function DataProvider({ children }) {
       status: 'pending',
       timestamp: new Date().toISOString()
     }
-    persistTestApplications(prev => [...prev, application])
+    setTestMissionApplications(prev => {
+      const next = [...prev, application]
+      saveJson('wtf_test_applications', next)
+      return next
+    })
     if (user) {
       addFeedEvent({
         type: 'test_mission_applied',
@@ -481,24 +520,28 @@ export function DataProvider({ children }) {
   }, [user])
 
   const updateTestMissionApplicationStatus = useCallback((appId, status) => {
-    persistTestApplications(prev => prev.map(a => {
-      if (a.id !== appId) return a
-      if (status === 'approved') {
-        addNotification(a.userId, {
-          type: 'mission_approved',
-          title: 'Mission Application Approved!',
-          body: `Your application for "${a.missionTitle}" has been approved.`,
-          link: '/test-missions'
-        })
-        addFeedEvent({
-          type: 'test_mission_approved',
-          user: a.userName,
-          userId: a.userId,
-          text: `was approved for test mission: ${a.missionTitle}`
-        })
-      }
-      return { ...a, status }
-    }))
+    setTestMissionApplications(prev => {
+      const next = prev.map(a => {
+        if (a.id !== appId) return a
+        if (status === 'approved') {
+          addNotification(a.userId, {
+            type: 'mission_approved',
+            title: 'Mission Application Approved!',
+            body: `Your application for "${a.missionTitle}" has been approved.`,
+            link: '/test-missions'
+          })
+          addFeedEvent({
+            type: 'test_mission_approved',
+            user: a.userName,
+            userId: a.userId,
+            text: `was approved for test mission: ${a.missionTitle}`
+          })
+        }
+        return { ...a, status }
+      })
+      saveJson('wtf_test_applications', next)
+      return next
+    })
   }, [])
 
   // --- Import / Report ---
@@ -548,7 +591,7 @@ export function DataProvider({ children }) {
       userAvatar: 'HQ',
       text: `**${title}** — ${body}`
     })
-    persistNotifications(prev => {
+    setNotifications(prev => {
       const notif = {
         id: genId(),
         type: 'system_broadcast',
@@ -558,7 +601,9 @@ export function DataProvider({ children }) {
         read: false,
         timestamp: new Date().toISOString()
       }
-      return [notif, ...prev]
+      const next = [notif, ...prev]
+      saveJson('wtf_notifications', next)
+      return next
     })
     try {
       insforge.database.from('posts').insert({
@@ -589,11 +634,16 @@ export function DataProvider({ children }) {
   // --- Notifications ---
 
   const markNotifRead = useCallback((notifId) => {
-    persistNotifications(prev => prev.map(n => n.id === notifId ? { ...n, read: true } : n))
+    setNotifications(prev => {
+      const next = prev.map(n => n.id === notifId ? { ...n, read: true } : n)
+      saveJson('wtf_notifications', next)
+      return next
+    })
   }, [])
 
   const clearNotifs = useCallback(() => {
-    persistNotifications([])
+    setNotifications([])
+    saveJson('wtf_notifications', [])
   }, [])
 
   const unreadCount = notifications.filter(n => !n.read).length

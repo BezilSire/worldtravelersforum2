@@ -22,14 +22,19 @@ export function AuthProvider({ children }) {
         .single()
       
       if (!profile) {
-        const name = authData.user.user_metadata?.full_name || authData.user.user_metadata?.name || 'Explorer'
+        const metaName = authData.user.user_metadata?.full_name || authData.user.user_metadata?.name
+        const emailName = authData.user.email?.split('@')[0] || 'User'
+        const name = metaName || emailName
         const newProfile = {
           id: authData.user.id,
           full_name: name,
           avatar_url: name.charAt(0).toUpperCase(),
           joined_date: new Date().toISOString().split('T')[0]
         }
-        await insforge.database.from('profiles').insert(newProfile)
+        const { error: insertErr } = await insforge.database.from('profiles').insert(newProfile)
+        if (insertErr) {
+          console.error('Failed to create fallback profile:', insertErr)
+        }
         profile = newProfile
       }
       
@@ -83,11 +88,16 @@ export function AuthProvider({ children }) {
   const login = async (email, password) => {
     const { data, error } = await insforge.auth.signInWithPassword({ email, password })
     if (!error && data?.user) {
-      const { data: profile } = await insforge.database
+      let { data: profile } = await insforge.database
         .from('profiles')
         .select('*')
         .eq('id', data.user.id)
         .single()
+      if (!profile) {
+        const name = data.user.user_metadata?.full_name || data.user.email?.split('@')[0] || 'User'
+        profile = { id: data.user.id, full_name: name, avatar_url: name.charAt(0).toUpperCase(), joined_date: new Date().toISOString().split('T')[0] }
+        await insforge.database.from('profiles').upsert(profile)
+      }
       setUser({ ...data.user, ...profile })
     }
     return { success: !error, error }
@@ -101,14 +111,17 @@ export function AuthProvider({ children }) {
     })
     
     if (!error && data?.user) {
-      // Create profile record
       const profileData = {
         id: data.user.id,
         full_name: name,
         avatar_url: name.charAt(0).toUpperCase(),
         joined_date: new Date().toISOString().split('T')[0]
       }
-      await insforge.database.from('profiles').insert(profileData)
+      const { error: profileError } = await insforge.database.from('profiles').insert(profileData)
+      if (profileError) {
+        console.error('Profile creation failed:', profileError)
+        return { success: false, error: profileError, data }
+      }
       setUser({ ...data.user, ...profileData })
     }
     return { success: !error, error, data }
