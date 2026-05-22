@@ -242,7 +242,7 @@ export default function Feed() {
               <div key={item.id} className="feed-card animate-fade-up">
                 <div style={{ display: 'flex', gap: 16 }}>
                   {/* Author Info */}
-                  <Link to={`/explorer/${getExplorerId(item.user)}`} style={{ flexShrink: 0 }}>
+                  <Link to={`/explorer/${getExplorerId(item.userId)}`} style={{ flexShrink: 0 }}>
                     <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem', fontWeight: 700, color: 'var(--accent-gold)' }}>
                       {item.avatar}
                     </div>
@@ -250,7 +250,7 @@ export default function Feed() {
 
                   <div style={{ flex: 1 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                      <Link to={`/explorer/${getExplorerId(item.user)}`} style={{ fontWeight: 600, fontSize: '1rem', color: 'var(--text-primary)', textDecoration: 'none', fontFamily: 'var(--font-serif)' }}>
+                      <Link to={`/explorer/${getExplorerId(item.userId)}`} style={{ fontWeight: 600, fontSize: '1rem', color: 'var(--text-primary)', textDecoration: 'none', fontFamily: 'var(--font-serif)' }}>
                         {item.user}
                       </Link>
                       <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>• {timeAgo(item.timestamp)}</span>
@@ -290,9 +290,9 @@ export default function Feed() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 24, marginTop: 16 }}>
                       <button 
                         onClick={() => likePost(item.id)}
-                        style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.9rem', color: item.likes > 0 ? '#ff4d6d' : 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', transition: 'all 0.2s' }}
+                        style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.9rem', color: item.likes > 0 ? 'var(--accent-gold)' : 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', transition: 'all 0.2s' }}
                       >
-                        <Heart size={18} fill={item.likes > 0 ? '#ff4d6d' : 'none'} color={item.likes > 0 ? '#ff4d6d' : 'currentColor'} /> {item.likes}
+                        <Heart size={18} fill={item.likes > 0 ? 'var(--accent-gold)' : 'none'} color={item.likes > 0 ? 'var(--accent-gold)' : 'currentColor'} /> {item.likes}
                       </button>
                       <button 
                         onClick={() => toggleComments(item.id)}

@@ -307,24 +307,18 @@ export function DataProvider({ children }) {
     }
   }
 
-  const likedPosts = useRef({})
-
   const likePost = async (postId) => {
-    if (!postId || likedPosts.current[postId]) return
-    likedPosts.current[postId] = true
-
-    setFeed(prev => prev.map(p => p.id === postId ? { ...p, likes: (p.likes || 0) + 1 } : p))
-
-    const { error } = await insforge.database.rpc('increment_likes', { post_id: postId })
-    if (error) {
-      console.error('Like RPC failed, trying direct update:', error)
-      const { error: updateError } = await insforge.database
-        .from('posts')
-        .update({ likes_count: (feed.find(p => p.id === postId)?.likes || 0) + 1 })
-        .eq('id', postId)
-      if (updateError) {
-        console.error('Direct like update also failed:', updateError)
-      }
+    if (!postId) return
+    let newCount = 0
+    setFeed(prev => {
+      const item = prev.find(p => p.id === postId)
+      newCount = (item?.likes || 0) + 1
+      return prev.map(p => p.id === postId ? { ...p, likes: newCount } : p)
+    })
+    try {
+      await insforge.database.from('posts').update({ likes_count: newCount }).eq('id', postId)
+    } catch (e) {
+      console.error('like failed', e)
     }
   }
 
