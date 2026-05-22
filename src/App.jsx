@@ -20,28 +20,30 @@ import ProtectedRoute from './components/ProtectedRoute.jsx'
 
 export default function App() {
   return (
-    <>
+    <div className="app-layout">
       <Navbar />
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/auth" element={<Auth />} />
-        <Route path="/privacy" element={<Privacy />} />
-        <Route path="/terms" element={<Terms />} />
-        
-        {/* Protected Routes */}
-        <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-        <Route path="/missions" element={<ProtectedRoute><Missions /></ProtectedRoute>} />
-        <Route path="/feed" element={<ProtectedRoute><Feed /></ProtectedRoute>} />
-        <Route path="/fund" element={<ProtectedRoute><Fund /></ProtectedRoute>} />
-        <Route path="/claim" element={<ProtectedRoute><ClaimStay /></ProtectedRoute>} />
-        <Route path="/destinations" element={<ProtectedRoute><Destinations /></ProtectedRoute>} />
-        <Route path="/destinations/:id" element={<ProtectedRoute><DestinationDiscussion /></ProtectedRoute>} />
-        <Route path="/messages" element={<ProtectedRoute><Messages /></ProtectedRoute>} />
-        <Route path="/explorer/:id" element={<ProtectedRoute><ExplorerProfile /></ProtectedRoute>} />
-        <Route path="/test-missions" element={<ProtectedRoute><TestMissions /></ProtectedRoute>} />
-        <Route path="/bookings" element={<ProtectedRoute><Bookings /></ProtectedRoute>} />
-        <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
-      </Routes>
-    </>
+      <main className="main-content">
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/auth" element={<Auth />} />
+          <Route path="/privacy" element={<Privacy />} />
+          <Route path="/terms" element={<Terms />} />
+          
+          {/* Protected Routes */}
+          <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+          <Route path="/missions" element={<ProtectedRoute><Missions /></ProtectedRoute>} />
+          <Route path="/feed" element={<ProtectedRoute><Feed /></ProtectedRoute>} />
+          <Route path="/fund" element={<ProtectedRoute><Fund /></ProtectedRoute>} />
+          <Route path="/claim" element={<ProtectedRoute><ClaimStay /></ProtectedRoute>} />
+          <Route path="/destinations" element={<ProtectedRoute><Destinations /></ProtectedRoute>} />
+          <Route path="/destinations/:id" element={<ProtectedRoute><DestinationDiscussion /></ProtectedRoute>} />
+          <Route path="/messages" element={<ProtectedRoute><Messages /></ProtectedRoute>} />
+          <Route path="/explorer/:id" element={<ProtectedRoute><ExplorerProfile /></ProtectedRoute>} />
+          <Route path="/test-missions" element={<ProtectedRoute><TestMissions /></ProtectedRoute>} />
+          <Route path="/bookings" element={<ProtectedRoute><Bookings /></ProtectedRoute>} />
+          <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
+        </Routes>
+      </main>
+    </div>
   )
 }

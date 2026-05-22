@@ -397,13 +397,13 @@ textarea.form-input { resize: vertical; min-height: 100px; }
 }
 .mobile-menu .nav-link { font-size: 1.2rem; padding: 16px 32px; }
 
-@media (max-width: 900px) {
+@media (max-width: 1023px) {
   .grid-3 { grid-template-columns: 1fr; }
   .grid-4 { grid-template-columns: repeat(2, 1fr); }
   .section-header h2 { font-size: 1.8rem; }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1023px) {
   .nav-links {
     display: none;
   }
@@ -430,3 +430,161 @@ textarea.form-input { resize: vertical; min-height: 100px; }
   .container { padding: 0 16px; }
   .modal-content { padding: 24px; }
 }
+
+/* ===== Substack Desktop Sidebar Layout ===== */
+@media (min-width: 1024px) {
+  .app-layout {
+    display: flex;
+    min-height: 100vh;
+    background: var(--bg-main);
+  }
+  .sidebar-container {
+    width: 260px;
+    height: 100vh;
+    position: fixed;
+    top: 0;
+    left: 0;
+    border-right: 1px solid var(--border-subtle);
+    background: #07080c; /* Substack Obsidian sidebar dark background */
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 32px 20px;
+    z-index: 100;
+  }
+  .main-content {
+    flex: 1;
+    margin-left: 260px;
+    min-height: 100vh;
+    background: var(--bg-main);
+    display: flex;
+    flex-direction: column;
+  }
+  .page {
+    padding-top: 48px !important; /* Minimal top spacing for desktop layout */
+    padding-bottom: 48px !important;
+  }
+  #main-nav {
+    display: none !important;
+  }
+  .bottom-nav {
+    display: none !important;
+  }
+}
+
+@media (max-width: 1023px) {
+  .sidebar-container {
+    display: none !important;
+  }
+  .main-content {
+    width: 100%;
+    margin-left: 0;
+  }
+}
+
+/* Sidebar Nav Items styling */
+.sidebar-logo {
+  display: flex;
+  align-items: center;
+  margin-bottom: 24px;
+  padding: 0 8px;
+}
+.sidebar-links {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+.sidebar-link {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 14px;
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  font-weight: 500;
+  border-radius: var(--radius-md);
+  transition: all 0.2s var(--transition-smooth);
+}
+.sidebar-link:hover, .sidebar-link.active {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.04);
+}
+.sidebar-link.active {
+  color: var(--accent-gold);
+  font-weight: 600;
+}
+.sidebar-btn {
+  margin: 16px 0;
+  width: 100%;
+  justify-content: center;
+  border-radius: 100px !important;
+  font-size: 0.9rem;
+  padding: 10px 20px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.sidebar-footer {
+  border-top: 1px solid var(--border-subtle);
+  padding-top: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.sidebar-profile {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+.sidebar-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--gradient-gold);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #000;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+.sidebar-user-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.sidebar-user-name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sidebar-user-sub {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sidebar-logout {
+  color: var(--text-muted);
+  transition: all 0.2s;
+  padding: 6px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.sidebar-logout:hover {
+  color: var(--accent-gold);
+  background: rgba(255, 255, 255, 0.05);
+}
+
