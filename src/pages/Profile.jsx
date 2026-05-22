@@ -14,6 +14,7 @@ export default function Profile() {
     full_name: user?.full_name || '',
     username: user?.username || '',
     bio: user?.bio || '', 
+    home_country: user?.home_country || '',
     tiktok: user?.socials?.tiktok || '', 
     youtube: user?.socials?.youtube || '', 
     instagram: user?.socials?.instagram || '' 
@@ -96,6 +97,9 @@ export default function Profile() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap', fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: 16 }}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Calendar size={14} /> Joined {user.joined_date}</span>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Compass size={14} /> Level {user.level}</span>
+                {user.home_country && (
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><MapPin size={14} style={{ color: 'var(--accent-gold)' }} /> From {user.home_country}</span>
+                )}
               </div>
 
               <div style={{ display: 'flex', gap: 12 }}>
@@ -329,6 +333,7 @@ export default function Profile() {
                 full_name: editForm.full_name,
                 username: editForm.username.toLowerCase(),
                 bio: editForm.bio, 
+                home_country: editForm.home_country,
                 socials: { 
                   tiktok: editForm.tiktok, 
                   youtube: editForm.youtube, 
@@ -359,6 +364,16 @@ export default function Profile() {
                   />
                 </div>
                 {usernameError && <p style={{ color: 'var(--accent-rose)', fontSize: '0.75rem', marginTop: 4 }}>{usernameError}</p>}
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Home Country</label>
+                <input 
+                  className="form-input" 
+                  placeholder="e.g. United States, Thailand, Germany" 
+                  value={editForm.home_country} 
+                  onChange={e => setEditForm({...editForm, home_country: e.target.value})} 
+                />
               </div>
 
               <div className="form-group">

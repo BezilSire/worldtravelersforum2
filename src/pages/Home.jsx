@@ -1,9 +1,23 @@
-import { Link } from 'react-router-dom'
+import { Link, Navigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
 import { Globe, MapPin, Shield, Users, ArrowRight, Compass, Mountain, Star, FileText } from 'lucide-react'
 
 export default function Home() {
-  const { user } = useAuth()
+  const { user, loading } = useAuth()
+
+  if (loading) {
+    return (
+      <div className="page" style={{ opacity: 0.5, pointerEvents: 'none' }}>
+        <div className="container">
+          <div style={{ height: '400px', background: 'var(--bg-elevated)', borderRadius: '24px', animation: 'pulse-glow 2s infinite' }}></div>
+        </div>
+      </div>
+    )
+  }
+
+  if (user) {
+    return <Navigate to="/feed" replace />
+  }
 
   return (
     <div className="page">

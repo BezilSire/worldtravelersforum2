@@ -14,7 +14,9 @@ create table if not exists public.profiles (
   missions_count integer default 0,
   joined_date date default now(),
   socials jsonb default '{}'::jsonb,
-  countries text[] default '{}'::text[]
+  countries text[] default '{}'::text[],
+  username text,
+  home_country text
 );
 
 -- Posts (Feed)
