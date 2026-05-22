@@ -162,6 +162,14 @@ export function DataProvider({ children }) {
     fetchFeed()
   }, [fetchFeed])
 
+  useEffect(() => {
+    setFeedEvents(prev => {
+      const filtered = prev.filter(ev => ev.type !== 'user_post')
+      saveJson('wtf_feed_events', filtered)
+      return filtered
+    })
+  }, [])
+
   // Initial Data Load
   useEffect(() => {
     async function initData() {
@@ -281,40 +289,71 @@ export function DataProvider({ children }) {
     return { success: !error, error }
   }
 
+  const updateFeedItem = useCallback((postId, updater) => {
+    setFeed(prev => {
+      const found = prev.some(p => p.id === postId)
+      if (!found) return prev
+      return prev.map(p => p.id === postId ? updater(p) : p)
+    })
+    setFeedEvents(prev => {
+      const found = prev.some(p => p.id === postId)
+      if (!found) return prev
+      const next = prev.map(p => p.id === postId ? updater(p) : p)
+      saveJson('wtf_feed_events', next)
+      return next
+    })
+  }, [])
+
+  const removeFeedItem = useCallback((postId) => {
+    setFeed(prev => prev.filter(p => p.id !== postId))
+    setFeedEvents(prev => {
+      const next = prev.filter(p => p.id !== postId)
+      saveJson('wtf_feed_events', next)
+      return next
+    })
+  }, [])
+
   const deletePost = async (postId) => {
     if (!user) return
-    const { error } = await insforge.database.from('posts').delete().eq('id', postId)
-    if (!error) {
-      setFeed(prev => prev.filter(p => p.id !== postId))
-      await fetchFeed()
-    } else {
-      console.error('Failed to delete post:', error)
+    try {
+      const { error } = await insforge.database.from('posts').delete().eq('id', postId)
+      if (!error) {
+        removeFeedItem(postId)
+      } else {
+        console.error('Failed to delete post:', error)
+      }
+    } catch (e) {
+      console.error('delete caught', e)
     }
   }
 
   const repostPost = async (postData) => {
     if (!user) return
     const repostText = `♻️ Repost\n\n${postData.text}\n\n— ${postData.originalAuthor}`
-    const { error } = await insforge.database.from('posts').insert({
-      user_id: user.id,
-      text: repostText,
-      flair: 'repost'
-    })
-    if (!error) {
-      await fetchFeed()
-    } else {
-      console.error('Failed to repost:', error)
+    try {
+      const { error } = await insforge.database.from('posts').insert({
+        user_id: user.id,
+        text: repostText,
+        flair: 'repost'
+      })
+      if (!error) {
+        await fetchFeed()
+      } else {
+        console.error('Failed to repost:', error)
+      }
+    } catch (e) {
+      console.error('repost caught', e)
     }
   }
 
   const likePost = async (postId) => {
     if (!postId) return
     let newCount = 0
-    setFeed(prev => {
-      const item = prev.find(p => p.id === postId)
-      newCount = (item?.likes || 0) + 1
-      return prev.map(p => p.id === postId ? { ...p, likes: newCount } : p)
+    updateFeedItem(postId, (item) => {
+      newCount = (item.likes || 0) + 1
+      return { ...item, likes: newCount }
     })
+    if (!newCount) return
     try {
       await insforge.database.from('posts').update({ likes_count: newCount }).eq('id', postId)
     } catch (e) {
