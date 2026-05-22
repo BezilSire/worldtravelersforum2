@@ -253,19 +253,14 @@ export function DataProvider({ children }) {
   }
 
   const submitStayFeedEvent = async (usr, stayData) => {
-    const ev = addFeedEvent({
-      type: 'stay_submitted',
-      user: usr.full_name,
-      userId: usr.id,
-      text: `submitted a stay at ${stayData.hotel} in ${stayData.country}`
+    const { error } = await insforge.database.from('posts').insert({
+      user_id: usr.id,
+      text: `submitted a stay at ${stayData.hotel} in ${stayData.country}`,
+      flair: 'system_update'
     })
-    try {
-      await insforge.database.from('posts').insert({
-        user_id: usr.id,
-        text: ev.text,
-        flair: 'system_update'
-      })
-    } catch {}
+    if (!error) {
+      await fetchFeed()
+    }
   }
 
   const createPost = async (postData) => {
@@ -277,13 +272,6 @@ export function DataProvider({ children }) {
       flair: postData.flair
     })
     if (!error) {
-      addFeedEvent({
-        type: 'user_post',
-        user: user.full_name,
-        userId: user.id,
-        text: postData.text,
-        flair: postData.flair
-      })
       await fetchFeed()
     } else {
       console.error('Failed to create post:', error)
@@ -311,13 +299,6 @@ export function DataProvider({ children }) {
       flair: 'repost'
     })
     if (!error) {
-      addFeedEvent({
-        type: 'user_post',
-        user: user.full_name,
-        userId: user.id,
-        text: repostText,
-        flair: 'repost'
-      })
       await fetchFeed()
     } else {
       console.error('Failed to repost:', error)
@@ -330,7 +311,12 @@ export function DataProvider({ children }) {
     if (likedPosts.current[postId]) return
     likedPosts.current[postId] = true
     setFeed(prev => prev.map(p => p.id === postId ? { ...p, likes: (p.likes || 0) + 1 } : p))
-    const { error } = await insforge.database.rpc('increment_likes', { post_id: postId })
+    const currentItem = feed.find(p => p.id === postId)
+    const currentLikes = currentItem?.likes || 0
+    const { error } = await insforge.database
+      .from('posts')
+      .update({ likes_count: currentLikes + 1 })
+      .eq('id', postId)
     if (error) {
       likedPosts.current[postId] = false
       setFeed(prev => prev.map(p => p.id === postId ? { ...p, likes: Math.max(0, (p.likes || 0) - 1) } : p))
