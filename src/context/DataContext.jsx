@@ -133,6 +133,7 @@ export function DataProvider({ children }) {
     if (!error) {
       setFeed(data.map(post => ({
         id: post.id,
+        userId: post.user_id,
         user: post.profiles?.full_name || 'Network HQ',
         avatar: post.profiles?.avatar_url || 'HQ',
         text: post.text,
@@ -143,6 +144,7 @@ export function DataProvider({ children }) {
         type: post.flair === 'system_update' ? post.flair : 'user_post',
         comments: post.comments?.map(c => ({
           id: c.id,
+          userId: c.user_id,
           user: c.profiles?.full_name || 'Explorer',
           avatar: c.profiles?.avatar_url || 'E',
           text: c.text,
@@ -289,8 +291,51 @@ export function DataProvider({ children }) {
     return { success: !error, error }
   }
 
+  const deletePost = async (postId) => {
+    if (!user) return
+    const { error } = await insforge.database.from('posts').delete().eq('id', postId)
+    if (!error) {
+      setFeed(prev => prev.filter(p => p.id !== postId))
+      await fetchFeed()
+    } else {
+      console.error('Failed to delete post:', error)
+    }
+  }
+
+  const repostPost = async (postData) => {
+    if (!user) return
+    const repostText = `♻️ Repost\n\n${postData.text}\n\n— ${postData.originalAuthor}`
+    const { error } = await insforge.database.from('posts').insert({
+      user_id: user.id,
+      text: repostText,
+      flair: 'repost'
+    })
+    if (!error) {
+      addFeedEvent({
+        type: 'user_post',
+        user: user.full_name,
+        userId: user.id,
+        text: repostText,
+        flair: 'repost'
+      })
+      await fetchFeed()
+    } else {
+      console.error('Failed to repost:', error)
+    }
+  }
+
+  const likedPosts = useRef({})
+
   const likePost = async (postId) => {
-    await insforge.database.rpc('increment_likes', { post_id: postId })
+    if (likedPosts.current[postId]) return
+    likedPosts.current[postId] = true
+    setFeed(prev => prev.map(p => p.id === postId ? { ...p, likes: (p.likes || 0) + 1 } : p))
+    const { error } = await insforge.database.rpc('increment_likes', { post_id: postId })
+    if (error) {
+      likedPosts.current[postId] = false
+      setFeed(prev => prev.map(p => p.id === postId ? { ...p, likes: Math.max(0, (p.likes || 0) - 1) } : p))
+      console.error('Failed to like post:', error)
+    }
   }
 
   const addComment = async (postId, comment) => {
@@ -651,6 +696,7 @@ export function DataProvider({ children }) {
   // Combined feed = DB feed + local feed events
   const combinedFeed = [...feedEvents.map(ev => ({
     id: ev.id,
+    userId: ev.userId,
     user: ev.user || 'System',
     avatar: ev.userAvatar || ev.user?.charAt(0).toUpperCase() || 'S',
     text: ev.text,
@@ -668,7 +714,7 @@ export function DataProvider({ children }) {
     testMissions, testMissionApplications,
     feedEvents,
 
-    submitStay, createPost, likePost, addComment,
+    submitStay, createPost, deletePost, repostPost, likePost, addComment,
     startDiscussion, postToDiscussion,
     createMission, joinMission, vouchUser,
     sendMessage, sendGroupMessage,

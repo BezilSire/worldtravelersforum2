@@ -1,7 +1,7 @@
 import { useData } from '../context/DataContext.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
 import { Link } from 'react-router-dom'
-import { Shield, Mountain, Star, Users, Globe, MapPin, MessageSquare, Heart, Send, Plus, TrendingUp, Award, Clock, Zap, Image, X, Tag, UserPlus, LogIn, Flag } from 'lucide-react'
+import { Shield, Mountain, Star, Users, Globe, MapPin, MessageSquare, Heart, Send, Plus, TrendingUp, Award, Clock, Zap, Image, X, Tag, UserPlus, LogIn, Flag, Trash2, Repeat } from 'lucide-react'
 import { useState, useMemo } from 'react'
 
 const FEED_ICONS = {
@@ -49,7 +49,7 @@ function getExplorerId(userId) {
 }
 
 export default function Feed() {
-  const { feed, createPost, likePost, addComment, destinations } = useData()
+  const { feed, createPost, deletePost, repostPost, likePost, addComment, destinations } = useData()
   const { user } = useAuth()
   const [postText, setPostText] = useState('')
   const [postImage, setPostImage] = useState('')
@@ -300,6 +300,24 @@ export default function Feed() {
                       >
                         <MessageSquare size={18} color={expandedComments[item.id] ? 'var(--accent-gold)' : 'currentColor'} /> {item.comments?.length || 0}
                       </button>
+                      {item.userId && item.userId === user?.id && (
+                        <button 
+                          onClick={() => { if (confirm('Delete this post?')) deletePost(item.id) }}
+                          style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.9rem', color: 'var(--accent-rose)', background: 'none', border: 'none', cursor: 'pointer', transition: 'all 0.2s', marginLeft: 'auto' }}
+                          title="Delete post"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      )}
+                      {user && item.userId !== user?.id && (
+                        <button 
+                          onClick={() => repostPost({ text: item.text, originalAuthor: item.user })}
+                          style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.9rem', color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', transition: 'all 0.2s' }}
+                          title="Repost"
+                        >
+                          <Repeat size={16} />
+                        </button>
+                      )}
                     </div>
 
                     {/* Professional Comment Section */}

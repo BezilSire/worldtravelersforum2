@@ -6,7 +6,7 @@ import { useState, useRef } from 'react'
 
 export default function Profile() {
   const { user, updateUser, checkUsername } = useAuth()
-  const { stays, missions, notifications, markNotifRead, importPastHistory, reportUser } = useData()
+  const { stays, missions, notifications, feed, markNotifRead, importPastHistory, reportUser } = useData()
   const [showImport, setShowImport] = useState(false)
   const [showEdit, setShowEdit] = useState(false)
   const [importForm, setImportForm] = useState({ countriesCount: 0, staysCount: 0 })
@@ -139,6 +139,68 @@ export default function Profile() {
               <div className="stat-label">{s.label}</div>
             </div>
           ))}
+        </div>
+
+        {/* My Activity */}
+        <div className="glass-card animate-fade-up" style={{ padding: 32, marginBottom: 32 }}>
+          <h3 style={{ fontSize: '1.1rem', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <MessageSquare size={18} style={{ color: 'var(--accent-teal)' }} /> My Activity
+          </h3>
+          {(() => {
+            const myPosts = feed.filter(f => f.userId === user?.id && f.type === 'user_post')
+            const myComments = feed.flatMap(f => (f.comments || []).filter(c => c.userId === user?.id))
+            const hasActivity = myPosts.length > 0 || myComments.length > 0
+            if (!hasActivity) {
+              return <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>No activity yet. <Link to="/feed" style={{ color: 'var(--accent-gold)' }}>Share your first travel note</Link> to get started.</p>
+            }
+            return (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                {myPosts.length > 0 && (
+                  <div>
+                    <h4 style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <Heart size={14} /> My Posts ({myPosts.length})
+                    </h4>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      {myPosts.slice(0, 5).map(p => (
+                        <div key={p.id} style={{ padding: '12px 16px', background: 'var(--bg-elevated)', borderRadius: 12, border: '1px solid var(--border-subtle)' }}>
+                          <div style={{ fontSize: '0.9rem', color: 'var(--text-primary)', marginBottom: 4, lineHeight: 1.4 }}>{p.text}</div>
+                          <div style={{ display: 'flex', gap: 16, fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                            <span><Heart size={12} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} />{p.likes || 0}</span>
+                            <span><MessageSquare size={12} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} />{p.comments?.length || 0}</span>
+                            <span>{new Date(p.timestamp).toLocaleDateString()}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {myComments.length > 0 && (
+                  <div>
+                    <h4 style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <MessageSquare size={14} /> My Replies ({myComments.length})
+                    </h4>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      {myComments.slice(0, 5).map(c => {
+                        const parentPost = feed.find(f => f.comments?.some(c2 => c2.id === c.id))
+                        return (
+                          <div key={c.id} style={{ padding: '12px 16px', background: 'var(--bg-elevated)', borderRadius: 12, border: '1px solid var(--border-subtle)' }}>
+                            <div style={{ fontSize: '0.85rem', color: 'var(--text-primary)', marginBottom: 4, lineHeight: 1.4 }}>{c.text}</div>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                              {parentPost ? <>on <Link to="/feed" style={{ color: 'var(--accent-gold)' }}>{parentPost.text?.slice(0, 60)}...</Link> · </> : ''}
+                              {new Date(c.timestamp).toLocaleDateString()}
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+                <Link to="/feed" className="btn-secondary btn-small" style={{ alignSelf: 'flex-start' }}>
+                  <MessageSquare size={14} /> View All Activity
+                </Link>
+              </div>
+            )
+          })()}
         </div>
 
         <div className="grid-2" style={{ alignItems: 'start' }}>
