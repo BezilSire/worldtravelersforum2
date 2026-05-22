@@ -1,4 +1,5 @@
 import { Routes, Route } from 'react-router-dom'
+import { useAuth } from './context/AuthContext.jsx'
 import Navbar from './components/Navbar.jsx'
 import Home from './pages/Home.jsx'
 import Profile from './pages/Profile.jsx'
@@ -19,8 +20,9 @@ import Admin from './pages/Admin.jsx'
 import ProtectedRoute from './components/ProtectedRoute.jsx'
 
 export default function App() {
+  const { user } = useAuth()
   return (
-    <div className="app-layout">
+    <div className={`app-layout${!user ? ' no-sidebar' : ''}`}>
       <Navbar />
       <main className="main-content">
         <Routes>

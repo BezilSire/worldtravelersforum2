@@ -438,6 +438,9 @@ textarea.form-input { resize: vertical; min-height: 100px; }
     min-height: 100vh;
     background: var(--bg-main);
   }
+  .app-layout.no-sidebar .main-content {
+    margin-left: 0;
+  }
   .sidebar-container {
     width: 260px;
     height: 100vh;

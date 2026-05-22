@@ -17,7 +17,8 @@ import {
   LogOut, 
   Menu, 
   X, 
-  Plus 
+  Plus,
+  BookOpen
 } from 'lucide-react'
 
 export default function Navbar() {
@@ -44,6 +45,7 @@ export default function Navbar() {
     { to: '/missions', label: 'Missions', icon: <Mountain size={20} /> },
     { to: '/test-missions', label: 'Test Missions', icon: <Zap size={20} /> },
     { to: '/fund', label: 'Explorer Fund', icon: <TrendingUp size={20} /> },
+    { to: '/bookings', label: 'My Bookings', icon: <BookOpen size={20} /> },
     { to: '/messages', label: 'Chat', icon: <MessageSquare size={20} />, badge: true },
     { to: '/profile', label: 'Notifications', icon: <Bell size={20} />, notifications: true },
     { to: '/admin', label: 'Admin Panel', icon: <Shield size={20} />, adminOnly: true }
@@ -71,6 +73,7 @@ export default function Navbar() {
   return (
     <>
       {/* ================= DESKTOP SIDEBAR ================= */}
+      {user && (
       <aside className="sidebar-container">
         <div>
           {/* Logo */}
@@ -117,46 +120,33 @@ export default function Navbar() {
             })}
           </nav>
 
-          {/* Primary Action Button (Substack Create style) */}
-          {user ? (
-            <Link to="/claim" className="btn-primary sidebar-btn">
-              <Plus size={16} /> Claim Stay
-            </Link>
-          ) : (
-            <Link to="/auth" className="btn-primary sidebar-btn">
-              Join Network
-            </Link>
-          )}
+          {/* Primary Action Button */}
+          <Link to="/claim" className="btn-primary sidebar-btn">
+            <Plus size={16} /> Claim Stay
+          </Link>
         </div>
 
         {/* User Profile / Footer section */}
-        {user ? (
-          <div className="sidebar-footer">
-            <Link to="/profile" className="sidebar-profile">
-              <div className="sidebar-avatar">
-                {user.avatar_url?.startsWith('http') || user.avatar_url?.startsWith('data:') ? (
-                  <img src={user.avatar_url} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                ) : (
-                  user.avatar_url || user.full_name?.charAt(0).toUpperCase() || 'U'
-                )}
-              </div>
-              <div className="sidebar-user-info">
-                <span className="sidebar-user-name">{user.full_name || 'Explorer'}</span>
-                <span className="sidebar-user-sub">@{user.username || 'explorer'}</span>
-              </div>
-            </Link>
-            <button onClick={handleLogout} className="sidebar-logout" title="Logout">
-              <LogOut size={18} />
-            </button>
-          </div>
-        ) : (
-          <div className="sidebar-footer" style={{ justifyContent: 'center' }}>
-            <Link to="/auth" style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 8 }}>
-              <User size={16} /> Guest Explorer
-            </Link>
-          </div>
-        )}
+        <div className="sidebar-footer">
+          <Link to="/profile" className="sidebar-profile">
+            <div className="sidebar-avatar">
+              {user.avatar_url?.startsWith('http') || user.avatar_url?.startsWith('data:') ? (
+                <img src={user.avatar_url} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ) : (
+                user.avatar_url || user.full_name?.charAt(0).toUpperCase() || 'U'
+              )}
+            </div>
+            <div className="sidebar-user-info">
+              <span className="sidebar-user-name">{user.full_name || 'Explorer'}</span>
+              <span className="sidebar-user-sub">@{user.username || 'explorer'}</span>
+            </div>
+          </Link>
+          <button onClick={handleLogout} className="sidebar-logout" title="Logout">
+            <LogOut size={18} />
+          </button>
+        </div>
       </aside>
+      )}
 
       {/* ================= MOBILE HEADER ================= */}
       <nav className="nav" id="main-nav">
