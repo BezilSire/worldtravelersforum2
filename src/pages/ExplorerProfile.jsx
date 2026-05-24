@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, Link, Navigate } from 'react-router-dom'
 import { useData } from '../context/DataContext.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
-import { insforge } from '../lib/insforge.js'
+import { supabase } from '../lib/supabase.js'
 import { Globe, Shield, Star, Heart, Calendar, Compass, MapPin, ArrowLeft, MessageSquare, AlertTriangle, Instagram, Youtube, Music2 } from 'lucide-react'
 
 export default function ExplorerProfile() {
@@ -17,7 +17,7 @@ export default function ExplorerProfile() {
   useEffect(() => {
     async function fetchProfile() {
       setLoading(true)
-      const { data, error } = await insforge.database
+      const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', id)

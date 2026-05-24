@@ -1,6 +1,2 @@
 [auth]
-allowed_redirect_urls = [
-  "http://localhost:5173/*",
-  "http://localhost:3000/*",
-  "https://*.vercel.app/*"
-]
+allowed_redirect_urls = ["http://localhost:5173/*", "https://*.vercel.app/*", "https://www.worldtravelers.forum/*"]

@@ -1,5 +1,5 @@
-import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react'
-import { insforge } from '../lib/insforge.js'
+import { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import { supabase } from '../lib/supabase.js'
 import { useAuth } from './AuthContext.jsx'
 
 const DataContext = createContext(null)
@@ -117,18 +117,17 @@ export function DataProvider({ children }) {
     return n
   }, [])
 
-  // Fetch Feed
   const fetchFeed = useCallback(async () => {
     if (!user) { setFeed([]); return }
 
-    const { data, error } = await insforge.database
+    const { data, error } = await supabase
       .from('posts')
       .select('*')
       .order('timestamp', { ascending: false })
 
     if (!error && data) {
       const userIds = [...new Set(data.map(p => p.user_id))]
-      const { data: profiles } = await insforge.database
+      const { data: profiles } = await supabase
         .from('profiles')
         .select('id, full_name, avatar_url')
         .in('id', userIds)
@@ -138,16 +137,16 @@ export function DataProvider({ children }) {
       )
 
       const postIds = data.map(p => p.id)
-      const { data: allComments } = await insforge.database
+      const { data: allComments } = await supabase
         .from('comments')
         .select('*')
-        .in('post_id', postIds.length ? postIds : ['__none__'])
+        .in('post_id', postIds.length ? postIds : ['00000000-0000-0000-0000-000000000000'])
         .order('timestamp', { ascending: true })
 
       const commentsByPost = {}
       if (allComments) {
         const commentUserIds = [...new Set(allComments.map(c => c.user_id))]
-        const { data: commentProfiles } = await insforge.database
+        const { data: commentProfiles } = await supabase
           .from('profiles')
           .select('id, full_name, avatar_url')
           .in('id', commentUserIds)
@@ -191,7 +190,6 @@ export function DataProvider({ children }) {
     fetchFeed()
   }, [fetchFeed])
 
-  // Initial Data Load
   useEffect(() => {
     async function initData() {
       setDestinations([
@@ -205,11 +203,10 @@ export function DataProvider({ children }) {
     initData()
   }, [])
 
-  // Fetch User Stays
   useEffect(() => {
     if (!user) { setStays([]); return }
     async function fetchStays() {
-      const { data, error } = await insforge.database
+      const { data, error } = await supabase
         .from('stays')
         .select('*')
         .eq('user_id', user.id)
@@ -219,10 +216,9 @@ export function DataProvider({ children }) {
     fetchStays()
   }, [user])
 
-  // Fetch Missions with participants
   useEffect(() => {
     async function fetchMissions() {
-      const { data, error } = await insforge.database
+      const { data, error } = await supabase
         .from('missions')
         .select('*')
         .order('timestamp', { ascending: false })
@@ -268,7 +264,7 @@ export function DataProvider({ children }) {
 
   const submitStay = async (stayData) => {
     if (!user) return
-    const { error } = await insforge.database.from('stays').insert({
+    const { error } = await supabase.from('stays').insert({
       user_id: user.id,
       hotel: stayData.hotel,
       country: stayData.country,
@@ -277,14 +273,14 @@ export function DataProvider({ children }) {
       check_out: stayData.checkOut
     })
     if (!error) {
-      const { data } = await insforge.database.from('stays').select('*').eq('user_id', user.id)
+      const { data } = await supabase.from('stays').select('*').eq('user_id', user.id)
       setStays(data)
       submitStayFeedEvent(user, stayData)
     }
   }
 
   const submitStayFeedEvent = async (usr, stayData) => {
-    const { error } = await insforge.database.from('posts').insert({
+    const { error } = await supabase.from('posts').insert({
       user_id: usr.id,
       text: `submitted a stay at ${stayData.hotel} in ${stayData.country}`,
       flair: 'system_update'
@@ -324,7 +320,7 @@ export function DataProvider({ children }) {
     })
 
     try {
-      const { error } = await insforge.database
+      const { error } = await supabase
         .from('posts')
         .insert({ user_id: user.id, text: postData.text })
       if (!error) {
@@ -366,7 +362,7 @@ export function DataProvider({ children }) {
   const deletePost = async (postId) => {
     if (!user) return
     try {
-      const { error } = await insforge.database.from('posts').delete().eq('id', postId)
+      const { error } = await supabase.from('posts').delete().eq('id', postId)
       if (!error) {
         removeFeedItem(postId)
       } else {
@@ -381,7 +377,7 @@ export function DataProvider({ children }) {
     if (!user) return
     const repostText = `♻️ Repost\n\n${postData.text}\n\n— ${postData.originalAuthor}`
     try {
-      const { error } = await insforge.database.from('posts').insert({
+      const { error } = await supabase.from('posts').insert({
         user_id: user.id,
         text: repostText,
         flair: 'repost'
@@ -405,7 +401,7 @@ export function DataProvider({ children }) {
     })
     if (!newCount) return
     try {
-      await insforge.database.from('posts').update({ likes_count: newCount }).eq('id', postId)
+      await supabase.from('posts').update({ likes_count: newCount }).eq('id', postId)
     } catch (e) {
       console.error('like failed', e)
     }
@@ -413,14 +409,12 @@ export function DataProvider({ children }) {
 
   const addComment = async (postId, comment) => {
     if (!user) return
-    await insforge.database.from('comments').insert({
+    await supabase.from('comments').insert({
       post_id: postId,
       user_id: user.id,
       text: comment.text
     })
   }
-
-  // --- Discussions ---
 
   const startDiscussion = useCallback((countryName) => {
     const id = countryName.toLowerCase().replace(/\s+/g, '-')
@@ -461,8 +455,6 @@ export function DataProvider({ children }) {
       return next
     })
   }, [user])
-
-  // --- Missions ---
 
   const saveMissionParticipants = (allMissions) => {
     const map = {}
@@ -507,7 +499,6 @@ export function DataProvider({ children }) {
       userId: user.id,
       text: `launched a new mission: ${form.title}`
     })
-    // Auto-create group chat for the mission
     const chatId = 'chat_' + genId()
     const newChat = {
       id: chatId,
@@ -545,7 +536,6 @@ export function DataProvider({ children }) {
       userId: user.id,
       text: `joined mission`
     })
-    // Add user to mission group chat
     setGroupChats(prev => {
       const next = prev.map(gc => {
         if (gc.missionId === missionId && !gc.participants.includes(user.id)) {
@@ -584,8 +574,6 @@ export function DataProvider({ children }) {
     })
   }, [])
 
-  // --- Messages ---
-
   const sendMessage = useCallback(({ from, to, text }) => {
     const msg = {
       id: genId(),
@@ -617,8 +605,6 @@ export function DataProvider({ children }) {
       return next
     })
   }, [])
-
-  // --- Test Missions ---
 
   const applyToTestMission = useCallback((app) => {
     const application = {
@@ -667,8 +653,6 @@ export function DataProvider({ children }) {
     })
   }, [])
 
-  // --- Import / Report ---
-
   const importPastHistory = useCallback(({ countriesCount, staysCount }, usr, updateUser) => {
     updateUser({
       countries_count: usr.countries_count + countriesCount,
@@ -691,8 +675,6 @@ export function DataProvider({ children }) {
       link: '/profile'
     })
   }, [])
-
-  // --- Admin ---
 
   const updateFundData = useCallback((data) => {
     setFund(prev => {
@@ -729,7 +711,7 @@ export function DataProvider({ children }) {
       return next
     })
     try {
-      insforge.database.from('posts').insert({
+      supabase.from('posts').insert({
         user_id: user?.id || '00000000-0000-0000-0000-000000000000',
         text: `📢 ${title}: ${body}`,
         flair: 'system_update'
@@ -754,8 +736,6 @@ export function DataProvider({ children }) {
     })
   }, [])
 
-  // --- Notifications ---
-
   const markNotifRead = useCallback((notifId) => {
     setNotifications(prev => {
       const next = prev.map(n => n.id === notifId ? { ...n, read: true } : n)
@@ -771,7 +751,6 @@ export function DataProvider({ children }) {
 
   const unreadCount = notifications.filter(n => !n.read).length
 
-  // Combined feed = DB feed + local feed events
   const combinedFeed = [...feedEvents.map(ev => ({
     id: ev.id,
     userId: ev.userId,

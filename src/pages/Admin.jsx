@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useData } from '../context/DataContext.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
-import { insforge } from '../lib/insforge.js'
+import { supabase } from '../lib/supabase.js'
 import { Shield, Plus, X, CheckCircle2, XCircle, Landmark, Send, Globe, Trash2, Users, Mountain, Calendar, ArrowRight, Bell, Search, BarChart3, MapPin, TrendingUp } from 'lucide-react'
 
 export default function Admin() {
@@ -29,7 +29,7 @@ export default function Admin() {
   useEffect(() => {
     if (!isAdmin) return
     async function fetchProfiles() {
-      const { data, error } = await insforge.database
+      const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .order('joined_date', { ascending: false })

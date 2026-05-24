@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { insforge } from '../lib/insforge.js'
+import { supabase } from '../lib/supabase.js'
 
 const AuthContext = createContext({ user: null, loading: true })
 
@@ -10,74 +10,73 @@ export function AuthProvider({ children }) {
   const navigate = useNavigate()
   const location = useLocation()
 
-  const hydrateUser = useCallback(async () => {
-    const { data: authData } = await insforge.auth.getCurrentUser()
-    
-    if (authData?.user) {
-      // Fetch profile
-      let { data: profile } = await insforge.database
-        .from('profiles')
-        .select('*')
-        .eq('id', authData.user.id)
-        .single()
-      
-      if (!profile) {
-        const metaName = authData.user.user_metadata?.full_name || authData.user.user_metadata?.name
-        const emailName = authData.user.email?.split('@')[0] || 'User'
-        const name = metaName || emailName
-        const newProfile = {
-          id: authData.user.id,
-          full_name: name,
-          avatar_url: name.charAt(0).toUpperCase(),
-          joined_date: new Date().toISOString().split('T')[0]
-        }
-        const { error: insertErr } = await insforge.database.from('profiles').insert(newProfile)
-        if (insertErr) {
-          console.error('Failed to create fallback profile:', insertErr)
-        }
-        profile = newProfile
-      }
-      
-      setUser({ ...authData.user, ...profile })
-      return true
-    } else {
+  const hydrateUser = useCallback(async (authUser) => {
+    if (!authUser) {
       setUser(null)
       return false
     }
+
+    let { data: profile } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', authUser.id)
+      .single()
+    
+    if (!profile) {
+      const metaName = authUser.user_metadata?.full_name || authUser.user_metadata?.name
+      const emailName = authUser.email?.split('@')[0] || 'User'
+      const name = metaName || emailName
+      const newProfile = {
+        id: authUser.id,
+        full_name: name,
+        avatar_url: name.charAt(0).toUpperCase(),
+        joined_date: new Date().toISOString().split('T')[0]
+      }
+      const { error: insertErr } = await supabase.from('profiles').insert(newProfile)
+      if (insertErr) {
+        console.error('Failed to create fallback profile:', insertErr)
+      }
+      profile = newProfile
+    }
+    
+    setUser({ ...authUser, ...profile })
+    return true
   }, [])
 
   useEffect(() => {
     let cancelled = false
 
     async function initAuth() {
-      // Check if this is an OAuth callback (insforge_code in URL)
       const params = new URLSearchParams(window.location.search)
-      const oauthCode = params.get('insforge_code')
+      const oauthCode = params.get('code')
 
       if (oauthCode) {
-        try {
-          // Exchange the OAuth code for a session
-          await insforge.auth.exchangeOAuthCode(oauthCode)
-          // Clean the URL
-          const cleanUrl = window.location.pathname
-          window.history.replaceState({}, '', cleanUrl)
-        } catch (err) {
-          console.error('OAuth code exchange failed:', err)
+        const cleanUrl = window.location.pathname
+        window.history.replaceState({}, '', cleanUrl)
+      }
+
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(
+        async (_event, session) => {
+          if (cancelled) return
+          
+          if (session?.user) {
+            await hydrateUser(session.user)
+          } else {
+            setUser(null)
+          }
+          setLoading(false)
         }
+      )
+
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!cancelled && session?.user) {
+        await hydrateUser(session.user)
+      }
+      if (!cancelled) {
+        setLoading(false)
       }
 
-      if (cancelled) return
-
-      // Now hydrate auth state (will pick up session from exchange above)
-      const hasUser = await hydrateUser()
-      if (cancelled) return
-
-      setLoading(false)
-
-      // If we just completed OAuth, navigate to profile
-      if (oauthCode && hasUser) {
-        navigate('/profile', { replace: true })
-      }
+      return () => { subscription.unsubscribe() }
     }
 
     void initAuth()
@@ -86,9 +85,9 @@ export function AuthProvider({ children }) {
   }, [hydrateUser, navigate])
 
   const login = async (email, password) => {
-    const { data, error } = await insforge.auth.signInWithPassword({ email, password })
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
     if (!error && data?.user) {
-      let { data: profile } = await insforge.database
+      let { data: profile } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', data.user.id)
@@ -96,7 +95,7 @@ export function AuthProvider({ children }) {
       if (!profile) {
         const name = data.user.user_metadata?.full_name || data.user.email?.split('@')[0] || 'User'
         profile = { id: data.user.id, full_name: name, avatar_url: name.charAt(0).toUpperCase(), joined_date: new Date().toISOString().split('T')[0] }
-        await insforge.database.from('profiles').upsert(profile)
+        await supabase.from('profiles').upsert(profile)
       }
       setUser({ ...data.user, ...profile })
     }
@@ -104,7 +103,7 @@ export function AuthProvider({ children }) {
   }
 
   const signup = async (name, email, password) => {
-    const { data, error } = await insforge.auth.signUp({ 
+    const { data, error } = await supabase.auth.signUp({ 
       email, 
       password,
       options: { data: { full_name: name } }
@@ -117,7 +116,7 @@ export function AuthProvider({ children }) {
         avatar_url: name.charAt(0).toUpperCase(),
         joined_date: new Date().toISOString().split('T')[0]
       }
-      const { error: profileError } = await insforge.database.from('profiles').insert(profileData)
+      const { error: profileError } = await supabase.from('profiles').insert(profileData)
       if (profileError) {
         console.error('Profile creation failed:', profileError)
         return { success: false, error: profileError, data }
@@ -128,33 +127,30 @@ export function AuthProvider({ children }) {
   }
 
   const logout = async () => {
-    await insforge.auth.signOut()
+    await supabase.auth.signOut()
     setUser(null)
   }
 
   const loginWithGoogle = async () => {
-    const { error } = await insforge.auth.signInWithOAuth({
+    const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      redirectTo: window.location.origin + '/auth'
+      options: { redirectTo: window.location.origin + '/auth' }
     })
     return { success: !error, error }
   }
 
   const sendResetEmail = async (email) => {
-    return await insforge.auth.sendResetPasswordEmail({
-      email,
+    return await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: window.location.origin + '/reset-password'
     })
   }
 
-  const resetPasswordWithCode = async (email, code, newPassword) => {
-    const { data, error } = await insforge.auth.exchangeResetPasswordToken({ email, code })
-    if (error) return { error }
-    return await insforge.auth.resetPassword({ newPassword, otp: data.token })
+  const resetPasswordWithCode = async (_email, _code, newPassword) => {
+    return await supabase.auth.updateUser({ password: newPassword })
   }
 
   const updateUser = async (updates) => {
-    const { error } = await insforge.database
+    const { error } = await supabase
       .from('profiles')
       .update(updates)
       .eq('id', user.id)
@@ -167,13 +163,12 @@ export function AuthProvider({ children }) {
 
   const checkUsername = async (username) => {
     if (!username) return false
-    const { data } = await insforge.database
+    const { data } = await supabase
       .from('profiles')
       .select('id')
       .eq('username', username.toLowerCase())
       .maybeSingle()
     
-    // If we find a user with this username and it's NOT the current user, it's taken
     return data && data.id !== user?.id
   }
 
