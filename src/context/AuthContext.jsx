@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react'
-import { useNavigate, useLocation } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase.js'
 
 const AuthContext = createContext({ user: null, loading: true })
@@ -7,8 +7,8 @@ const AuthContext = createContext({ user: null, loading: true })
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [passwordRecovery, setPasswordRecovery] = useState(false)
   const navigate = useNavigate()
-  const location = useLocation()
 
   const hydrateUser = useCallback(async (authUser) => {
     if (!authUser) {
@@ -46,43 +46,37 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     let cancelled = false
 
-    async function initAuth() {
-      const params = new URLSearchParams(window.location.search)
-      const oauthCode = params.get('code')
-
-      if (oauthCode) {
-        const cleanUrl = window.location.pathname
-        window.history.replaceState({}, '', cleanUrl)
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (cancelled) return
+      if (session?.user) {
+        hydrateUser(session.user)
       }
+      setLoading(false)
+    })
 
-      const { data: { subscription } } = supabase.auth.onAuthStateChange(
-        async (_event, session) => {
-          if (cancelled) return
-          
-          if (session?.user) {
-            await hydrateUser(session.user)
-          } else {
-            setUser(null)
-          }
-          setLoading(false)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (cancelled) return
+
+        if (event === 'PASSWORD_RECOVERY') {
+          setPasswordRecovery(true)
+          return
         }
-      )
 
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!cancelled && session?.user) {
-        await hydrateUser(session.user)
-      }
-      if (!cancelled) {
+        if (session?.user) {
+          await hydrateUser(session.user)
+        } else {
+          setUser(null)
+        }
         setLoading(false)
       }
+    )
 
-      return () => { subscription.unsubscribe() }
+    return () => {
+      cancelled = true
+      subscription.unsubscribe()
     }
-
-    void initAuth()
-
-    return () => { cancelled = true }
-  }, [hydrateUser, navigate])
+  }, [hydrateUser])
 
   const login = async (email, password) => {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })
@@ -116,12 +110,19 @@ export function AuthProvider({ children }) {
         avatar_url: name.charAt(0).toUpperCase(),
         joined_date: new Date().toISOString().split('T')[0]
       }
-      const { error: profileError } = await supabase.from('profiles').insert(profileData)
-      if (profileError) {
-        console.error('Profile creation failed:', profileError)
-        return { success: false, error: profileError, data }
+
+      const emailConfirmed = !!data.user.email_confirmed_at
+
+      if (emailConfirmed) {
+        const { error: profileError } = await supabase.from('profiles').insert(profileData)
+        if (profileError) {
+          console.error('Profile creation failed:', profileError)
+          return { success: false, error: profileError, data }
+        }
+        setUser({ ...data.user, ...profileData })
+      } else {
+        await supabase.from('profiles').upsert(profileData)
       }
-      setUser({ ...data.user, ...profileData })
     }
     return { success: !error, error, data }
   }
@@ -129,6 +130,7 @@ export function AuthProvider({ children }) {
   const logout = async () => {
     await supabase.auth.signOut()
     setUser(null)
+    setPasswordRecovery(false)
   }
 
   const loginWithGoogle = async () => {
@@ -141,12 +143,16 @@ export function AuthProvider({ children }) {
 
   const sendResetEmail = async (email) => {
     return await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: window.location.origin + '/reset-password'
+      redirectTo: window.location.origin + '/auth'
     })
   }
 
-  const resetPasswordWithCode = async (_email, _code, newPassword) => {
-    return await supabase.auth.updateUser({ password: newPassword })
+  const resetPassword = async (newPassword) => {
+    const { error } = await supabase.auth.updateUser({ password: newPassword })
+    if (!error) {
+      setPasswordRecovery(false)
+    }
+    return { error }
   }
 
   const updateUser = async (updates) => {
@@ -175,7 +181,7 @@ export function AuthProvider({ children }) {
   return (
     <AuthContext.Provider value={{ 
       user, loading, login, signup, logout, updateUser, checkUsername,
-      loginWithGoogle, sendResetEmail, resetPasswordWithCode 
+      loginWithGoogle, sendResetEmail, resetPassword, passwordRecovery
     }}>
       {children}
     </AuthContext.Provider>

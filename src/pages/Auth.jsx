@@ -1,25 +1,33 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate, Navigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
-import { Globe, ArrowRight, Key, Shield } from 'lucide-react'
+import { Globe, ArrowRight, Key, Shield, Lock } from 'lucide-react'
 
 export default function Auth() {
-  const [mode, setMode] = useState('login') // login, signup, forgot, reset
+  const [mode, setMode] = useState('login')
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [code, setCode] = useState('')
+  const [newPassword, setNewPassword] = useState('')
   const [error, setError] = useState('')
   const [msg, setMsg] = useState('')
   const [loading, setLoading] = useState(false)
   
-  const { user, loading: authLoading, login, signup, loginWithGoogle, sendResetEmail, resetPasswordWithCode } = useAuth()
+  const { user, loading: authLoading, login, signup, loginWithGoogle, sendResetEmail, resetPassword, passwordRecovery } = useAuth()
   const navigate = useNavigate()
 
-  // If already logged in, redirect to profile
-  if (!authLoading && user) {
+  const redirecting = !authLoading && user && !passwordRecovery
+
+  if (redirecting) {
     return <Navigate to="/profile" replace />
   }
+
+  useEffect(() => {
+    if (passwordRecovery) {
+      setMode('reset')
+      setMsg('Choose a new password for your account.')
+    }
+  }, [passwordRecovery])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -32,10 +40,10 @@ export default function Auth() {
         if (!name || !email || !password) throw new Error('All fields required')
         const res = await signup(name, email, password)
         if (res.success) {
-          if (res.data?.requireEmailVerification) {
-            setMsg('Please check your email for the verification code.')
-          } else {
+          if (res.data?.user?.email_confirmed_at) {
             navigate('/profile')
+          } else {
+            setMsg('Check your email for a confirmation link to activate your account.')
           }
         } else {
           throw res.error
@@ -49,14 +57,12 @@ export default function Auth() {
         if (!email) throw new Error('Email required')
         const { error } = await sendResetEmail(email)
         if (error) throw error
-        setMsg('Reset code sent to your email.')
-        setMode('reset')
+        setMsg('A password reset link has been sent to your email.')
       } else if (mode === 'reset') {
-        if (!email || !code || !password) throw new Error('All fields required')
-        const { error } = await resetPasswordWithCode(email, code, password)
+        if (!newPassword || newPassword.length < 6) throw new Error('Password must be at least 6 characters')
+        const { error } = await resetPassword(newPassword)
         if (error) throw error
-        setMsg('Password reset successful. You can now sign in.')
-        setMode('login')
+        navigate('/profile')
       }
     } catch (err) {
       setError(err.message || 'An error occurred')
@@ -83,19 +89,9 @@ export default function Auth() {
 
     if (mode === 'reset') {
       return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-          <div className="form-group">
-            <label className="form-label">Email Address</label>
-            <input className="form-input" type="email" value={email} disabled />
-          </div>
-          <div className="form-group">
-            <label className="form-label">6-Digit Reset Code</label>
-            <input className="form-input" type="text" placeholder="123456" value={code} onChange={e => setCode(e.target.value)} required />
-          </div>
-          <div className="form-group">
-            <label className="form-label">New Password</label>
-            <input className="form-input" type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} required />
-          </div>
+        <div className="form-group">
+          <label className="form-label">New Password</label>
+          <input className="form-input" type="password" placeholder="••••••••" value={newPassword} onChange={e => setNewPassword(e.target.value)} required minLength={6} />
         </div>
       )
     }
@@ -134,26 +130,28 @@ export default function Auth() {
       <div style={{ maxWidth: 440, width: '100%', padding: '0 24px' }}>
         <div style={{ textAlign: 'center', marginBottom: 40 }}>
           <div style={{ width: 56, height: 56, borderRadius: 16, background: 'var(--gradient-gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
-            {mode === 'forgot' || mode === 'reset' ? <Key size={28} color="#0a0b0f" /> : <Globe size={28} color="#0a0b0f" />}
+            {mode === 'reset' ? <Lock size={28} color="#0a0b0f" /> : mode === 'forgot' ? <Key size={28} color="#0a0b0f" /> : <Globe size={28} color="#0a0b0f" />}
           </div>
           <h1 style={{ fontSize: '1.8rem', marginBottom: 8 }}>
             {mode === 'login' && 'Welcome Back, Explorer'}
             {mode === 'signup' && 'Join the Network'}
             {mode === 'forgot' && 'Reset Password'}
-            {mode === 'reset' && 'Create New Password'}
+            {mode === 'reset' && 'Set New Password'}
           </h1>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem' }}>
             {mode === 'login' && 'Sign in to your explorer identity.'}
             {mode === 'signup' && 'Create your explorer identity and start building.'}
-            {mode === 'forgot' && "Enter your email to receive a reset code."}
-            {mode === 'reset' && 'Enter the code from your email and your new password.'}
+            {mode === 'forgot' && "Enter your email to receive a reset link."}
+            {mode === 'reset' && 'Enter your new password below.'}
           </p>
         </div>
 
-        <div style={{ padding: '12px 16px', background: 'rgba(212,168,83,0.08)', border: '1px solid rgba(212,168,83,0.2)', borderRadius: 12, marginBottom: 24, fontSize: '0.85rem', color: 'var(--accent-gold)', textAlign: 'center' }}>
-          <Shield size={14} style={{ marginRight: 8 }} />
-          Platform in Early Access — Existing explorers only
-        </div>
+        {mode !== 'reset' && (
+          <div style={{ padding: '12px 16px', background: 'rgba(212,168,83,0.08)', border: '1px solid rgba(212,168,83,0.2)', borderRadius: 12, marginBottom: 24, fontSize: '0.85rem', color: 'var(--accent-gold)', textAlign: 'center' }}>
+            <Shield size={14} style={{ marginRight: 8 }} />
+            Platform in Early Access — Existing explorers only
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="glass-card" style={{ padding: 36 }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
@@ -167,8 +165,8 @@ export default function Auth() {
                 <>
                   {mode === 'login' && 'Sign In'}
                   {mode === 'signup' && 'Join the Network — Free'}
-                  {mode === 'forgot' && 'Send Reset Code'}
-                  {mode === 'reset' && 'Reset Password'}
+                  {mode === 'forgot' && 'Send Reset Link'}
+                  {mode === 'reset' && 'Set New Password'}
                   <ArrowRight size={16} />
                 </>
               )}
@@ -198,7 +196,7 @@ export default function Auth() {
 
         <p style={{ textAlign: 'center', marginTop: 24, color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
           {mode === 'login' && (
-            <>New explorers welcome once the network opens.</>
+            <>New here? <button onClick={() => { setMode('signup'); setError(''); setMsg('') }} style={{ color: 'var(--accent-gold)', textDecoration: 'underline', fontSize: '0.9rem', background: 'none', border: 'none', cursor: 'pointer' }}>Create Account</button></>
           )}
           {mode === 'signup' && (
             <>Already an explorer? <button onClick={() => { setMode('login'); setError(''); setMsg('') }} style={{ color: 'var(--accent-gold)', textDecoration: 'underline', fontSize: '0.9rem', background: 'none', border: 'none', cursor: 'pointer' }}>Sign In</button></>
