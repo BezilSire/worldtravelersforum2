@@ -1,12 +1,13 @@
 import { useAuth } from '../context/AuthContext.jsx'
 import { useData } from '../context/DataContext.jsx'
 import { Link, Navigate } from 'react-router-dom'
-import { MapPin, Globe, Shield, Star, Calendar, ArrowRight, Compass, CheckCircle, History, X, Plus, Camera, AlertTriangle, Heart, Instagram, Youtube, Music2, Edit3, LifeBuoy, FileText, Bell, Mountain, MessageSquare, ExternalLink } from 'lucide-react'
+import { MapPin, Globe, Shield, Star, Calendar, ArrowRight, Compass, CheckCircle, History, X, Plus, Camera, AlertTriangle, Heart, Instagram, Youtube, Music2, Edit3, LifeBuoy, FileText, Bell, Mountain, MessageSquare, ExternalLink, Trophy } from 'lucide-react'
 import { useState, useRef } from 'react'
+import { calcReputation } from '../lib/reputation.js'
 
 export default function Profile() {
   const { user, updateUser, checkUsername } = useAuth()
-  const { stays, missions, notifications, feed, markNotifRead, importPastHistory, reportUser } = useData()
+  const { stays, missions, notifications, feed, markNotifRead, importPastHistory, reportUser, userVouches } = useData()
   const [showImport, setShowImport] = useState(false)
   const [showEdit, setShowEdit] = useState(false)
   const [importForm, setImportForm] = useState({ countriesCount: 0, staysCount: 0 })
@@ -40,6 +41,17 @@ export default function Profile() {
   const verifiedStays = userStays.filter(s => s.verified)
   const pendingStays = userStays.filter(s => !s.verified)
   const xpPercent = user.xp_next > 0 ? Math.min((user.xp / user.xp_next) * 100, 100) : 0
+
+  const myPosts = feed.filter(f => f.userId === user?.id && f.type === 'user_post')
+  const rep = calcReputation({
+    countriesCount: user.countries_count || 0,
+    staysCount: stays.length,
+    postsCount: myPosts.length,
+    flightsCount: 0,
+    tripReportsCount: 0,
+    vouchesCount: (userVouches[user.id] || 0) + (user.vouches_count || 0),
+    missionsCount: user.missions_count || 0
+  })
 
   return (
     <div className="page">
@@ -139,6 +151,63 @@ export default function Profile() {
               <div className="stat-label">{s.label}</div>
             </div>
           ))}
+        </div>
+
+        {/* Reputation Score */}
+        <div className="glass-card animate-fade-up animate-delay-1" style={{ padding: 32, marginBottom: 32 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap', marginBottom: 20 }}>
+            <h3 style={{ fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Trophy size={18} style={{ color: 'var(--accent-gold)' }} /> Explorer Reputation
+            </h3>
+            <span className="badge badge-gold" style={{ fontSize: '0.85rem', padding: '6px 16px' }}>
+              {rep.rank}
+            </span>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
+            <div style={{ background: 'var(--bg-elevated)', borderRadius: 12, padding: '16px 20px', border: '1px solid var(--border-subtle)' }}>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Legacy Score</div>
+              <div style={{ fontSize: '1.6rem', fontWeight: 700, color: 'var(--accent-gold)' }}>{rep.legacyScore}</div>
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>from {user.countries_count || 0} self-reported {user.countries_count === 1 ? 'country' : 'countries'}</div>
+            </div>
+            <div style={{ background: 'var(--bg-elevated)', borderRadius: 12, padding: '16px 20px', border: '1px solid var(--border-subtle)' }}>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Earned Score</div>
+              <div style={{ fontSize: '1.6rem', fontWeight: 700, color: 'var(--accent-teal)' }}>{rep.earnedScore}</div>
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>from platform actions</div>
+            </div>
+          </div>
+
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: 6 }}>
+              <span style={{ color: 'var(--text-secondary)' }}>Total Score</span>
+              <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{rep.totalScore}</span>
+            </div>
+            <div className="level-bar-track" style={{ height: 8 }}>
+              <div className="level-bar-fill" style={{ width: `${Math.min((rep.totalScore / 700) * 100, 100)}%` }} />
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 8 }}>
+            {[
+              { label: 'Stays', count: rep.breakdown.stays.count, pts: rep.breakdown.stays.subtotal, icon: <Shield size={14} />, color: 'var(--accent-blue)' },
+              { label: 'Flights', count: rep.breakdown.flights.count, pts: rep.breakdown.flights.subtotal, icon: <MapPin size={14} />, color: 'var(--text-muted)' },
+              { label: 'Posts', count: rep.breakdown.posts.count, pts: rep.breakdown.posts.subtotal, icon: <MessageSquare size={14} />, color: 'var(--accent-teal)' },
+              { label: 'Trip Reports', count: rep.breakdown.tripReports.count, pts: rep.breakdown.tripReports.subtotal, icon: <FileText size={14} />, color: 'var(--text-muted)' },
+              { label: 'Vouches', count: rep.breakdown.vouches.count, pts: rep.breakdown.vouches.subtotal, icon: <Heart size={14} />, color: 'var(--accent-rose)' },
+              { label: 'Missions', count: rep.breakdown.missions.count, pts: rep.breakdown.missions.subtotal, icon: <Mountain size={14} />, color: 'var(--accent-purple)' },
+            ].map((item, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', background: 'var(--bg-secondary)', borderRadius: 8, fontSize: '0.8rem' }}>
+                <span style={{ color: item.color }}>{item.icon}</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ color: 'var(--text-secondary)' }}>{item.label}</div>
+                  <div style={{ display: 'flex', gap: 6, fontWeight: 600 }}>
+                    <span>{item.count}</span>
+                    <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>× {item.pts}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
 
         {/* My Activity */}
