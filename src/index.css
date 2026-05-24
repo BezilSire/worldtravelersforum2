@@ -428,7 +428,36 @@ textarea.form-input { resize: vertical; min-height: 100px; }
   .grid-2 { grid-template-columns: 1fr; }
   .grid-4 { grid-template-columns: 1fr; }
   .container { padding: 0 16px; }
-  .modal-content { padding: 24px; }
+  .page { padding-top: 64px; }
+  .modal-content { padding: 20px; border-radius: var(--radius-lg); }
+  .glass-card { padding: 20px !important; }
+  .glass-card[style*="padding"] { padding: 20px !important; }
+  .stat-card { padding: 16px; }
+  .stat-card .stat-value { font-size: 1.8rem !important; }
+  .btn-primary, .btn-secondary { padding: 12px 24px; font-size: 0.9rem; }
+  .timeline { padding-left: 24px; }
+  .timeline-dot { left: -24px; width: 18px; height: 18px; }
+  .form-input { padding: 12px 14px; font-size: 16px; }
+  h1 { font-size: 1.5rem !important; }
+  h2 { font-size: 1.3rem !important; }
+  h3 { font-size: 1.1rem !important; }
+  .section-header h2 { font-size: 1.5rem !important; }
+  .section { padding: 48px 0; }
+  .nav-inner { padding: 0 16px; height: 64px; }
+  .bottom-nav { height: 60px; }
+}
+
+/* Touch-friendly improvements */
+@media (max-width: 1023px) {
+  .nav-link, .bottom-nav-item, .sidebar-link { cursor: pointer; }
+  input, textarea, select { font-size: 16px !important; }
+}
+
+/* Better mobile landscape support */
+@media (max-height: 600px) {
+  .page { padding-top: 56px; }
+  .bottom-nav { height: 52px; }
+  .bottom-nav-item svg { width: 18px; height: 18px; }
 }
 
 /* ===== Substack Desktop Sidebar Layout ===== */

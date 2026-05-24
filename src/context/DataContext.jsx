@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase.js'
 import { useAuth } from './AuthContext.jsx'
+import { useBrowserNotifications } from '../hooks/useBrowserNotifications.js'
 
 const DataContext = createContext(null)
 
@@ -36,6 +37,7 @@ function genId() {
 
 export function DataProvider({ children }) {
   const { user } = useAuth()
+  const { sendNotification } = useBrowserNotifications()
   const [stays, setStays] = useState([])
   const [missions, setMissions] = useState([])
   const [feed, setFeed] = useState([])
@@ -567,12 +569,16 @@ export function DataProvider({ children }) {
       body: `${fromName} vouched for you.`,
       link: '/profile'
     })
+    sendNotification(`${fromName} vouched for you!`, {
+      body: `You received a vouch from ${fromName}.`,
+      tag: 'vouch'
+    })
     setUserVouches(prev => {
       const next = { ...prev, [toId]: (prev[toId] || 0) + 1 }
       saveJson('wtf_user_vouches', next)
       return next
     })
-  }, [])
+  }, [sendNotification])
 
   const sendMessage = useCallback(({ from, to, text }) => {
     const msg = {
@@ -587,7 +593,13 @@ export function DataProvider({ children }) {
       saveJson('wtf_messages', next)
       return next
     })
-  }, [])
+    if (to !== user?.id) {
+      sendNotification(`New message from ${from?.name || 'Explorer'}`, {
+        body: text?.slice(0, 100),
+        tag: 'message'
+      })
+    }
+  }, [user, sendNotification])
 
   const sendGroupMessage = useCallback((chatId, { from, text }) => {
     const msg = {
@@ -638,6 +650,10 @@ export function DataProvider({ children }) {
             title: 'Mission Application Approved!',
             body: `Your application for "${a.missionTitle}" has been approved.`,
             link: '/test-missions'
+          })
+          sendNotification('Mission Approved!', {
+            body: `Your application for "${a.missionTitle}" has been approved.`,
+            tag: 'mission'
           })
           addFeedEvent({
             type: 'test_mission_approved',
