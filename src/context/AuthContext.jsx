@@ -46,12 +46,14 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     let cancelled = false
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (cancelled) return
       if (session?.user) {
-        hydrateUser(session.user)
+        await hydrateUser(session.user)
       }
-      setLoading(false)
+      if (!cancelled) {
+        setLoading(false)
+      }
     })
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
