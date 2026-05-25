@@ -928,6 +928,36 @@ export function DataProvider({ children }) {
     })
   }, [user])
 
+  const editDiscussionPost = useCallback((destId, postId, newText) => {
+    if (!user || !newText.trim()) return
+    setDiscussions(prev => {
+      const existing = prev[destId] || []
+      const next = { ...prev, [destId]: existing.map(p =>
+        p.id === postId && p.userId === user.id
+          ? { ...p, text: newText, edited: true }
+          : p
+      ) }
+      saveJson('wtf_discussions', next)
+      return next
+    })
+    supabase.from('discussion_posts').update({ text: newText, edited: true, updated_at: new Date().toISOString() }).eq('id', postId).then(({ error }) => {
+      if (error) console.error('edit discussion post failed:', error)
+    })
+  }, [user])
+
+  const deleteDiscussionPost = useCallback((destId, postId) => {
+    if (!user) return
+    setDiscussions(prev => {
+      const existing = prev[destId] || []
+      const next = { ...prev, [destId]: existing.filter(p => p.id !== postId || p.userId !== user.id) }
+      saveJson('wtf_discussions', next)
+      return next
+    })
+    supabase.from('discussion_posts').delete().eq('id', postId).then(({ error }) => {
+      if (error) console.error('delete discussion post failed:', error)
+    })
+  }, [user])
+
   const addResourceTip = useCallback((destId, resourceId, tip) => {
     if (!user || !tip.trim()) return
     setDestinationResources(prev => {
@@ -1425,7 +1455,7 @@ export function DataProvider({ children }) {
     sendMessage, sendGroupMessage,
     editMessage, deleteMessage, reactToMessage,
     saveBookmark, removeBookmark, shareToDiscussion,
-    addResourceTip,
+    editDiscussionPost, deleteDiscussionPost, addResourceTip,
     applyToTestMission, updateTestMissionApplicationStatus,
     importPastHistory, reportUser,
     addFeedEvent, addNotification, markNotifRead, clearNotifs,
