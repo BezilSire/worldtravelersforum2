@@ -2,7 +2,7 @@ import { useData } from '../context/DataContext.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react'
 import { Navigate } from 'react-router-dom'
-import { Send, Search, User, MessageSquare, Edit3, Trash2, Smile, X, Check, ChevronLeft, Users } from 'lucide-react'
+import { Send, Search, User, MessageSquare, Edit3, Trash2, Smile, X, Check, ChevronLeft, Users, Bookmark, Share2, MessageCircle } from 'lucide-react'
 
 const REACTIONS = ['❤️', '👍', '😂', '😮', '😢', '🙏']
 
@@ -57,7 +57,7 @@ function Avatar({ src, name, size = 36, style }) {
 
 export default function Messages() {
   const { user } = useAuth()
-  const { messages, sendMessage, groupChats, sendGroupMessage, allProfiles, dmHistory, editMessage, deleteMessage, reactToMessage } = useData()
+  const { messages, sendMessage, groupChats, sendGroupMessage, allProfiles, dmHistory, editMessage, deleteMessage, reactToMessage, saveBookmark, shareToDiscussion, destinations } = useData()
 
   const [activeChat, setActiveChat] = useState(null)
   const [msgText, setMsgText] = useState('')
@@ -70,6 +70,9 @@ export default function Messages() {
   const [deleteConfirm, setDeleteConfirm] = useState(null)
   const [newChatSearch, setNewChatSearch] = useState('')
   const [showNewChat, setShowNewChat] = useState(false)
+  const [chatSearch, setChatSearch] = useState('')
+  const [shareTarget, setShareTarget] = useState(null)
+  const [showShareModal, setShowShareModal] = useState(false)
   const listRef = useRef(null)
   const msgEndRef = useRef(null)
   const editRef = useRef(null)
@@ -190,7 +193,13 @@ export default function Messages() {
     ? groupConversations.find(c => c.id === activeChat.id)?.memberCount
     : null
 
-  const messageGroups = useMemo(() => groupByDate(currentMessages), [currentMessages])
+  const filteredMessages = useMemo(() => {
+    if (!chatSearch.trim()) return currentMessages
+    const q = chatSearch.toLowerCase()
+    return currentMessages.filter(m => m.text?.toLowerCase().includes(q))
+  }, [currentMessages, chatSearch])
+
+  const messageGroups = useMemo(() => groupByDate(filteredMessages), [filteredMessages])
 
   useEffect(() => {
     msgEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -235,6 +244,33 @@ export default function Messages() {
     setEditingId(null)
     setEditText('')
   }, [])
+
+  const handleSaveBookmark = useCallback((msg, chatType) => {
+    saveBookmark({
+      messageId: msg.id,
+      text: msg.text,
+      from: msg.from,
+      chatType,
+      chatName: currentTitle
+    })
+  }, [saveBookmark, currentTitle])
+
+  const handleShareStart = useCallback((text) => {
+    setShareTarget(text)
+    setShowShareModal(true)
+  }, [])
+
+  const handleShareConfirm = useCallback((destId) => {
+    if (!shareTarget || !destId) return
+    shareToDiscussion(shareTarget, destId)
+    setShowShareModal(false)
+    setShareTarget(null)
+  }, [shareTarget, shareToDiscussion])
+
+  const shareDestinations = useMemo(() => {
+    if (!destinations) return []
+    return destinations.filter(d => d.id && d.name)
+  }, [destinations])
 
   const handleDelete = useCallback((msgId, type) => {
     setDeleteConfirm(msgId)
@@ -315,6 +351,47 @@ export default function Messages() {
                       <div>
                         <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>{p.full_name}</div>
                         {p.username && <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>@{p.username}</div>}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {showShareModal && (
+          <div className="modal-overlay" onClick={() => setShowShareModal(false)}>
+            <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: 420 }}>
+              <div className="modal-title">Share to Destination Discussion</div>
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: 16 }}>
+                Choose a destination to share this tip with:
+              </p>
+              {shareDestinations.length === 0 ? (
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>No destinations available.</p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 300, overflowY: 'auto' }}>
+                  {shareDestinations.map(d => (
+                    <button
+                      key={d.id}
+                      onClick={() => handleShareConfirm(d.id)}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px',
+                        borderRadius: 'var(--radius-md)', transition: 'background 0.2s',
+                        textAlign: 'left', width: '100%', border: 'none', background: 'none',
+                        color: 'inherit', fontFamily: 'inherit', cursor: 'pointer'
+                      }}
+                      className="conversation-item"
+                    >
+                      <div style={{
+                        width: 36, height: 36, borderRadius: 8, background: 'var(--accent-gold-glow)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem', fontWeight: 700, color: 'var(--accent-gold)'
+                      }}>
+                        {d.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>{d.name}</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{d.country}</div>
                       </div>
                     </button>
                   ))}
@@ -433,6 +510,16 @@ export default function Messages() {
                       }
                     </div>
                   </div>
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      className="form-input"
+                      placeholder="Search in chat..."
+                      value={chatSearch}
+                      onChange={e => setChatSearch(e.target.value)}
+                      style={{ padding: '6px 12px 6px 32px', fontSize: '0.8rem', width: 160, borderRadius: 'var(--radius-md)' }}
+                    />
+                    <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                  </div>
                 </div>
 
                 {/* Messages */}
@@ -498,7 +585,7 @@ export default function Messages() {
                                 </div>
 
                                 {/* Reactions */}
-                                {msg.reactions && Object.keys(msg.reactions).length > 0 && (
+                                {Object.keys(msg.reactions || {}).length > 0 && (
                                   <div className="message-reactions">
                                     {Object.entries(msg.reactions).map(([emoji, users]) => (
                                       <button
@@ -510,6 +597,13 @@ export default function Messages() {
                                         {users.length > 0 && <span>{users.length}</span>}
                                       </button>
                                     ))}
+                                    <button className="reaction-add-btn" onClick={() => setShowEmojiPicker(showEmojiPicker === msg.id ? null : msg.id)}>
+                                      <Smile size={14} />
+                                    </button>
+                                  </div>
+                                )}
+                                {(!msg.reactions || Object.keys(msg.reactions).length === 0) && (
+                                  <div className="message-reactions">
                                     <button className="reaction-add-btn" onClick={() => setShowEmojiPicker(showEmojiPicker === msg.id ? null : msg.id)}>
                                       <Smile size={14} />
                                     </button>
@@ -531,15 +625,25 @@ export default function Messages() {
                                   </div>
                                 )}
 
-                                {/* Message actions (own messages only) */}
-                                {isOwn && !isEditing && (
+                                {/* Message actions */}
+                                {!isEditing && (
                                   <div className="message-actions">
-                                    <button onClick={() => handleEdit(msg.id, msg.text)} className="message-action-btn" title="Edit">
-                                      <Edit3 size={13} />
+                                    <button onClick={() => handleSaveBookmark(msg, activeChat.type)} className="message-action-btn" title="Save as tip">
+                                      <Bookmark size={13} />
                                     </button>
-                                    <button onClick={() => handleDelete(msg.id, activeChat.type)} className="message-action-btn" title="Delete" style={{ color: 'var(--accent-rose, #ef4444)' }}>
-                                      <Trash2 size={13} />
+                                    <button onClick={() => handleShareStart(msg.text)} className="message-action-btn" title="Share to destination discussion">
+                                      <Share2 size={13} />
                                     </button>
+                                    {isOwn && (
+                                      <>
+                                        <button onClick={() => handleEdit(msg.id, msg.text)} className="message-action-btn" title="Edit">
+                                          <Edit3 size={13} />
+                                        </button>
+                                        <button onClick={() => handleDelete(msg.id, activeChat.type)} className="message-action-btn" title="Delete" style={{ color: 'var(--accent-rose, #ef4444)' }}>
+                                          <Trash2 size={13} />
+                                        </button>
+                                      </>
+                                    )}
                                   </div>
                                 )}
                               </div>

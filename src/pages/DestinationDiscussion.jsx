@@ -1,18 +1,22 @@
 import { useParams, Link } from 'react-router-dom'
 import { useData } from '../context/DataContext.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
-import { ArrowLeft, Send, MessageSquare, Shield, User, Reply, X } from 'lucide-react'
+import { ArrowLeft, Send, MessageSquare, Shield, User, Reply, X, Users, Check, Plus, Bookmark } from 'lucide-react'
 import { useState } from 'react'
 
 export default function DestinationDiscussion() {
   const { id } = useParams()
   const { user } = useAuth()
-  const { destinations, discussions, postToDiscussion } = useData()
+  const { destinations, discussions, postToDiscussion, followedDestinations, joinDestination, leaveDestination, destinationMembers, allProfiles } = useData()
   const [msgText, setMsgText] = useState('')
   const [replyingTo, setReplyingTo] = useState(null)
+  const [showMembers, setShowMembers] = useState(false)
 
   const country = destinations.find(d => d.id === id)
   const posts = discussions[id] || []
+  const isFollowing = followedDestinations?.includes(id)
+  const members = destinationMembers?.[id] || []
+  const memberProfiles = members.map(mid => allProfiles.find(p => p.id === mid)).filter(Boolean)
 
   const handleSend = (e) => {
     e.preventDefault()
@@ -35,11 +39,40 @@ export default function DestinationDiscussion() {
         </Link>
 
         <div className="animate-fade-up" style={{ marginBottom: 40 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8, flexWrap: 'wrap' }}>
             <h1 style={{ fontSize: '2.2rem' }}>{country.name} <span className="text-gradient">Discussion</span></h1>
+            {user && (
+              <button
+                onClick={() => isFollowing ? leaveDestination(id) : joinDestination(id)}
+                className={`btn-${isFollowing ? 'secondary' : 'primary'} btn-small`}
+                style={{ padding: '6px 14px', fontSize: '0.75rem' }}
+              >
+                {isFollowing ? <><Check size={14} /> Following</> : <><Plus size={14} /> Follow</>}
+              </button>
+            )}
+            <button onClick={() => setShowMembers(!showMembers)} className="btn-secondary btn-small" style={{ padding: '6px 14px', fontSize: '0.75rem' }}>
+              <Users size={14} /> {members.length > 0 ? members.length : '0'}
+            </button>
           </div>
           <p style={{ color: 'var(--text-secondary)' }}>{country.description}</p>
         </div>
+
+        {showMembers && memberProfiles.length > 0 && (
+          <div className="glass-card" style={{ marginBottom: 24, padding: 20 }}>
+            <h3 style={{ fontSize: '1rem', marginBottom: 16 }}>Members following this destination</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {memberProfiles.map(p => (
+                <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{ width: 32, height: 32, borderRadius: 8, background: 'var(--bg-elevated)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 700, overflow: 'hidden', flexShrink: 0 }}>
+                    {p.avatar_url?.startsWith('http') ? <img src={p.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (p.full_name || '?').charAt(0).toUpperCase()}
+                  </div>
+                  <span style={{ fontSize: '0.9rem', fontWeight: 500 }}>{p.full_name}</span>
+                  {p.id === user?.id && <span className="badge badge-teal" style={{ fontSize: '0.6rem' }}>You</span>}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="glass-card" style={{ minHeight: 500, display: 'flex', flexDirection: 'column' }}>
           <div style={{ padding: '16px 24px', borderBottom: '1px solid var(--border-subtle)', background: 'rgba(255,255,255,0.02)' }}>

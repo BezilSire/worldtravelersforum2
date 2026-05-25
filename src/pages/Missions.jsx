@@ -9,7 +9,7 @@ const TYPE_COLORS = { 'Creator Trip': 'var(--accent-gold)', 'Photography': 'var(
 
 export default function Missions() {
   const { user } = useAuth()
-  const { missions, createMission, joinMission, vouchUser } = useData()
+  const { missions, createMission, joinMission, leaveMission, vouchUser, allProfiles } = useData()
   const [showCreate, setShowCreate] = useState(false)
   const [form, setForm] = useState({ title: '', type: '', description: '', countries: '', startDate: '', endDate: '', maxParticipants: 12, joiningDeadline: '' })
   const [sessionVouches, setSessionVouches] = useState([])
@@ -65,43 +65,55 @@ export default function Missions() {
                     </Link>
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
-                    {m.participants.map(pid => (
-                      <div key={pid} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 10, background: 'var(--bg-elevated)', borderRadius: 12, border: '1px solid var(--border-subtle)' }}>
-                        <div style={{ width: 32, height: 32, borderRadius: 8, background: 'var(--bg-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem', fontWeight: 700 }}>
-                          {pid === user.id ? 'YOU' : 'EX'}
-                        </div>
-                        <div style={{ flex: 1, fontSize: '0.85rem' }}>
-                          <div style={{ fontWeight: 600 }}>{pid === user.id ? 'You (Leader)' : `Explorer ${pid.slice(-3)}`}</div>
-                        </div>
-                        {pid !== user.id && (
-                          <div style={{ display: 'flex', gap: 8 }}>
-                            <button 
-                              onClick={() => {
-                                if (sessionVouches.includes(pid)) return
-                                vouchUser({ 
-                                  fromId: user.id, fromName: user.full_name, fromAvatar: user.avatar_url || user.full_name?.charAt(0).toUpperCase(), 
-                                  toId: pid, toName: `Explorer ${pid.slice(-3)}` 
-                                })
-                                setSessionVouches([...sessionVouches, pid])
-                              }} 
-                              className="btn-secondary btn-small" 
-                              style={{ 
-                                padding: '4px 8px', 
-                                fontSize: '0.7rem',
-                                color: sessionVouches.includes(pid) ? '#ff4d6d' : 'inherit',
-                                borderColor: sessionVouches.includes(pid) ? '#ff4d6d' : 'inherit'
-                              }}
-                              disabled={sessionVouches.includes(pid)}
-                            >
-                              <Heart size={12} fill={sessionVouches.includes(pid) ? '#ff4d6d' : 'none'} /> {sessionVouches.includes(pid) ? 'Vouched' : 'Vouch'}
-                            </button>
-                            <Link to="/messages" style={{ color: 'var(--text-muted)' }} title="DM Explorer">
-                              <MessageSquare size={14} />
-                            </Link>
+                    {m.participants.map(pid => {
+                      const profile = allProfiles.find(p => p.id === pid)
+                      const pName = profile?.full_name || (pid === user.id ? 'You' : `Explorer ${pid.slice(-3)}`)
+                      const pAvatar = profile?.avatar_url
+                      const isYou = pid === user.id
+                      return (
+                        <div key={pid} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 10, background: 'var(--bg-elevated)', borderRadius: 12, border: '1px solid var(--border-subtle)' }}>
+                          <div style={{ width: 32, height: 32, borderRadius: 8, background: isYou ? 'var(--accent-gold-glow)' : 'var(--bg-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 700, color: isYou ? 'var(--accent-gold)' : 'var(--text-secondary)', overflow: 'hidden', flexShrink: 0 }}>
+                            {pAvatar?.startsWith('http') || pAvatar?.startsWith('data:') ? (
+                              <img src={pAvatar} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            ) : (
+                              pName.charAt(0).toUpperCase()
+                            )}
                           </div>
-                        )}
-                      </div>
-                    ))}
+                          <div style={{ flex: 1, fontSize: '0.85rem', minWidth: 0 }}>
+                            <div style={{ fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {isYou ? 'You (Leader)' : pName}
+                            </div>
+                          </div>
+                          {!isYou && (
+                            <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                              <button 
+                                onClick={() => {
+                                  if (sessionVouches.includes(pid)) return
+                                  vouchUser({ 
+                                    fromId: user.id, fromName: user.full_name, fromAvatar: user.avatar_url || user.full_name?.charAt(0).toUpperCase(), 
+                                    toId: pid, toName: pName
+                                  })
+                                  setSessionVouches([...sessionVouches, pid])
+                                }} 
+                                className="btn-secondary btn-small" 
+                                style={{ 
+                                  padding: '4px 8px', 
+                                  fontSize: '0.7rem',
+                                  color: sessionVouches.includes(pid) ? '#ff4d6d' : 'inherit',
+                                  borderColor: sessionVouches.includes(pid) ? '#ff4d6d' : 'inherit'
+                                }}
+                                disabled={sessionVouches.includes(pid)}
+                              >
+                                <Heart size={12} fill={sessionVouches.includes(pid) ? '#ff4d6d' : 'none'} /> {sessionVouches.includes(pid) ? 'Vouched' : 'Vouch'}
+                              </button>
+                              <Link to={`/explorer/${pid}`} style={{ color: 'var(--text-muted)' }} title="View Profile">
+                                <MessageSquare size={14} />
+                              </Link>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
                   </div>
                 </div>
               ))}
@@ -155,7 +167,14 @@ export default function Missions() {
                   <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>Led by <strong style={{ color: 'var(--text-secondary)' }}>{mission.leader}</strong></div>
                   {user && !isLeader && (
                     hasJoined ? (
-                      <span className="badge badge-teal">Joined</span>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <span className="badge badge-teal">Joined</span>
+                        {mission.leaderId !== user.id && (
+                          <button onClick={() => leaveMission(mission.id)} className="btn-secondary btn-small" style={{ padding: '4px 10px', fontSize: '0.75rem', color: 'var(--accent-rose, #ef4444)', borderColor: 'var(--accent-rose, #ef4444)' }}>
+                            Leave
+                          </button>
+                        )}
+                      </div>
                     ) : (
                       <button 
                         onClick={() => handleJoin(mission.id)} 

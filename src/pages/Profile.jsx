@@ -1,13 +1,13 @@
 import { useAuth } from '../context/AuthContext.jsx'
 import { useData } from '../context/DataContext.jsx'
 import { Link, Navigate } from 'react-router-dom'
-import { MapPin, Globe, Shield, Star, Calendar, ArrowRight, History, X, Plus, Camera, AlertTriangle, Heart, Instagram, Youtube, Music2, Edit3, LifeBuoy, FileText, Bell, Mountain, MessageSquare, ExternalLink, Trophy } from 'lucide-react'
+import { MapPin, Globe, Shield, Star, Calendar, ArrowRight, History, X, Plus, Camera, AlertTriangle, Heart, Instagram, Youtube, Music2, Edit3, LifeBuoy, FileText, Bell, Mountain, MessageSquare, ExternalLink, Trophy, Bookmark, Trash2 } from 'lucide-react'
 import { useState, useRef } from 'react'
 import { calcReputation } from '../lib/reputation.js'
 
 export default function Profile() {
   const { user, updateUser, checkUsername } = useAuth()
-  const { stays, missions, notifications, feed, markNotifRead, importPastHistory, reportUser, userVouches } = useData()
+  const { stays, missions, notifications, feed, markNotifRead, importPastHistory, reportUser, userVouches, bookmarks, removeBookmark, followedDestinations, destinations } = useData()
   const [showImport, setShowImport] = useState(false)
   const [showEdit, setShowEdit] = useState(false)
   const [importForm, setImportForm] = useState({ countriesCount: 0, staysCount: 0 })
@@ -404,6 +404,40 @@ export default function Profile() {
             </div>
           ) : (
             <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>No notifications yet. They'll appear here when you join missions or receive updates.</p>
+          )}
+        </div>
+
+        {/* Saved Tips / Bookmarks */}
+        <div className="glass-card" style={{ padding: 32, marginTop: 32 }}>
+          <h3 style={{ fontSize: '1.1rem', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Bookmark size={18} style={{ color: 'var(--accent-gold)' }} /> Saved Tips
+          </h3>
+          {bookmarks && bookmarks.length > 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {bookmarks.slice(0, 10).map(bm => (
+                <div key={bm.id} style={{
+                  padding: '12px 16px', borderRadius: 12,
+                  background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)',
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12
+                }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: 4, lineHeight: 1.5, wordBreak: 'break-word' }}>{bm.text}</div>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'flex', gap: 8 }}>
+                      <span>From: {bm.chatName || bm.chatType}</span>
+                      <span>·</span>
+                      <span>{new Date(bm.savedAt).toLocaleDateString()}</span>
+                    </div>
+                  </div>
+                  <button onClick={() => removeBookmark(bm.id)} style={{ color: 'var(--text-muted)', padding: 4, borderRadius: 6, border: 'none', background: 'none', cursor: 'pointer', flexShrink: 0 }}>
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+              No saved tips yet. When you see useful info in a chat, click <Bookmark size={12} style={{ display: 'inline', verticalAlign: 'middle' }} /> to save it here.
+            </p>
           )}
         </div>
 

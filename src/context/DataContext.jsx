@@ -54,6 +54,9 @@ export function DataProvider({ children }) {
   const [feedEvents, setFeedEvents] = useState(loadJson('wtf_feed_events', []))
   const [allProfiles, setAllProfiles] = useState([])
   const [dmHistory, setDmHistory] = useState([])
+  const [bookmarks, setBookmarks] = useState(loadJson('wtf_bookmarks', []))
+  const [followedDestinations, setFollowedDestinations] = useState(loadJson('wtf_followed_destinations', []))
+  const [destinationMembers, setDestinationMembers] = useState(loadJson('wtf_destination_members', {}))
   const [testMissionApplications, setTestMissionApplications] = useState(loadJson('wtf_test_applications', []))
   const [testMissions, setTestMissions] = useState(loadJson('wtf_test_missions', [
     {
@@ -105,6 +108,9 @@ export function DataProvider({ children }) {
   const persistDiscussions = (v) => { setDiscussions(v); saveJson('wtf_discussions', v) }
   const persistGroupChats = (v) => { setGroupChats(v); saveJson('wtf_group_chats', v) }
   const persistNotifications = (v) => { setNotifications(v); saveJson('wtf_notifications', v) }
+  const persistBookmarks = (v) => { setBookmarks(v); saveJson('wtf_bookmarks', v) }
+  const persistFollowedDestinations = (v) => { setFollowedDestinations(v); saveJson('wtf_followed_destinations', v) }
+  const persistDestinationMembers = (v) => { setDestinationMembers(v); saveJson('wtf_destination_members', v) }
   const persistTestApplications = (v) => { setTestMissionApplications(v); saveJson('wtf_test_applications', v) }
 
   const isAdmin = user?.email === ADMIN_EMAIL
@@ -608,6 +614,70 @@ export function DataProvider({ children }) {
     }
   }, [user])
 
+  const saveBookmark = useCallback(({ messageId, text, from, chatType, chatName }) => {
+    if (!user) return
+    const bm = {
+      id: 'bm_' + genId(),
+      messageId,
+      text,
+      from,
+      chatType,
+      chatName,
+      savedAt: new Date().toISOString()
+    }
+    setBookmarks(prev => {
+      const next = [bm, ...prev]
+      saveJson('wtf_bookmarks', next)
+      return next
+    })
+    addNotification(user.id, {
+      type: 'bookmark_saved',
+      title: 'Tip Saved',
+      body: 'Message saved to your bookmarks.',
+      link: '/profile'
+    })
+  }, [user])
+
+  const removeBookmark = useCallback((bookmarkId) => {
+    setBookmarks(prev => {
+      const next = prev.filter(b => b.id !== bookmarkId)
+      saveJson('wtf_bookmarks', next)
+      return next
+    })
+  }, [])
+
+  const shareToDiscussion = useCallback((text, destId) => {
+    if (!user || !destId) return
+    setDiscussions(prev => {
+      const existing = prev[destId] || []
+      const post = {
+        id: genId(),
+        user: user.full_name,
+        userId: user.id,
+        text: `📎 Shared from chat:\n\n${text}`,
+        parentId: null,
+        timestamp: new Date().toISOString()
+      }
+      const next = { ...prev, [destId]: [...existing, post] }
+      saveJson('wtf_discussions', next)
+      return next
+    })
+    supabase.from('discussion_posts').insert({
+      discussion_id: destId,
+      user_id: user.id,
+      user_name: user.full_name,
+      text: `📎 Shared from chat:\n\n${text}`
+    }).then(({ error }) => {
+      if (error) console.error('shareToDiscussion insert failed:', error)
+    })
+    addNotification(user.id, {
+      type: 'shared_to_discussion',
+      title: 'Shared to Discussion',
+      body: 'Your message has been shared to the destination discussion.',
+      link: `/destinations/${destId}`
+    })
+  }, [user])
+
   const submitStay = async (stayData) => {
     if (!user) return
     if (!checkRateLimit('submit_stay', 5)) return
@@ -959,6 +1029,68 @@ export function DataProvider({ children }) {
     })
   }, [user])
 
+  const leaveMission = useCallback((missionId) => {
+    if (!user) return
+    setMissions(prev => {
+      const updated = prev.map(m => {
+        if (m.id !== missionId) return m
+        if (!m.participants.includes(user.id)) return m
+        return {
+          ...m,
+          participants: m.participants.filter(id => id !== user.id),
+          spots: m.spots + 1
+        }
+      })
+      saveMissionParticipants(updated)
+      return updated
+    })
+    setGroupChats(prev => {
+      const next = prev.map(gc => {
+        if (gc.missionId !== missionId) return gc
+        return { ...gc, participants: (gc.participants || []).filter(id => id !== user.id) }
+      })
+      saveJson('wtf_group_chats', next)
+      return next
+    })
+    if (user) {
+      supabase.from('mission_participants').delete().eq('mission_id', missionId).eq('user_id', user.id).then(({ error }) => {
+        if (error) console.error('leaveMission delete failed:', error)
+      })
+    }
+  }, [user])
+
+  const joinDestination = useCallback((destId) => {
+    if (!user) return
+    setFollowedDestinations(prev => {
+      if (prev.includes(destId)) return prev
+      const next = [...prev, destId]
+      saveJson('wtf_followed_destinations', next)
+      return next
+    })
+    setDestinationMembers(prev => {
+      const members = prev[destId] || []
+      if (members.includes(user.id)) return prev
+      const next = { ...prev, [destId]: [...members, user.id] }
+      saveJson('wtf_destination_members', next)
+      return next
+    })
+  }, [user])
+
+  const leaveDestination = useCallback((destId) => {
+    if (!user) return
+    setFollowedDestinations(prev => {
+      const next = prev.filter(d => d !== destId)
+      saveJson('wtf_followed_destinations', next)
+      return next
+    })
+    setDestinationMembers(prev => {
+      const members = prev[destId] || []
+      const next = { ...prev, [destId]: members.filter(id => id !== user.id) }
+      saveJson('wtf_destination_members', next)
+      return next
+    })
+  }, [user])
+
   const vouchUser = useCallback(({ fromId, fromName, fromAvatar, toId, toName }) => {
     if (!checkRateLimit(`vouch_${fromId}`, 10)) return
     addFeedEvent({
@@ -1249,13 +1381,15 @@ export function DataProvider({ children }) {
     discussions, messages, groupChats, notifications,
     testMissions, testMissionApplications,
     feedEvents, userVouches, loadingFeed, feedHasMore,
-    allProfiles, dmHistory,
+    allProfiles, dmHistory, bookmarks, followedDestinations, destinationMembers,
 
     submitStay, createPost, deletePost, repostPost, likePost, addComment,
     startDiscussion, postToDiscussion,
-    createMission, joinMission, vouchUser,
+    createMission, joinMission, leaveMission, vouchUser,
+    joinDestination, leaveDestination,
     sendMessage, sendGroupMessage,
     editMessage, deleteMessage, reactToMessage,
+    saveBookmark, removeBookmark, shareToDiscussion,
     applyToTestMission, updateTestMissionApplicationStatus,
     importPastHistory, reportUser,
     addFeedEvent, addNotification, markNotifRead, clearNotifs,
