@@ -3,7 +3,7 @@ import { useParams, Link, Navigate } from 'react-router-dom'
 import { useData } from '../context/DataContext.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
 import { supabase } from '../lib/supabase.js'
-import { Globe, Shield, Star, Heart, Calendar, Compass, MapPin, ArrowLeft, MessageSquare, AlertTriangle, Instagram, Youtube, Music2, Trophy, Mountain, FileText } from 'lucide-react'
+import { Globe, Shield, Star, Heart, Calendar, MapPin, ArrowLeft, MessageSquare, AlertTriangle, Instagram, Youtube, Music2, Trophy, Mountain, FileText } from 'lucide-react'
 import { calcReputation } from '../lib/reputation.js'
 
 export default function ExplorerProfile() {
@@ -110,7 +110,6 @@ export default function ExplorerProfile() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                   <h1 style={{ fontSize: '1.8rem' }}>{profile.full_name || 'Explorer'}</h1>
                   {profile.username && <div style={{ color: 'var(--accent-gold)', fontWeight: 600, fontSize: '0.9rem' }}>@{profile.username}</div>}
-                  <span className="badge badge-gold">{profile.level_title || 'Explorer'}</span>
                 </div>
                 <div style={{ display: 'flex', gap: 12 }}>
                   <button
@@ -142,7 +141,6 @@ export default function ExplorerProfile() {
 
               <div style={{ display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap', fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: 16 }}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Calendar size={14} /> Joined {profile.joined_date}</span>
-                <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Compass size={14} /> Level {profile.level}</span>
                 {profile.home_country && (
                   <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><MapPin size={14} style={{ color: 'var(--accent-gold)' }} /> From {profile.home_country}</span>
                 )}
@@ -201,8 +199,8 @@ export default function ExplorerProfile() {
                 <span style={{ color: 'var(--text-secondary)' }}>Total Score</span>
                 <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{rep.totalScore}</span>
               </div>
-              <div className="level-bar-track" style={{ height: 8 }}>
-                <div className="level-bar-fill" style={{ width: `${Math.min((rep.totalScore / 700) * 100, 100)}%` }} />
+              <div className="score-bar-track" style={{ height: 8 }}>
+                <div className="score-bar-fill" style={{ width: `${Math.min((rep.totalScore / 700) * 100, 100)}%` }} />
               </div>
             </div>
 

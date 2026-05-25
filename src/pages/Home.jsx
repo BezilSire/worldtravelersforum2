@@ -107,29 +107,27 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Explorer Levels */}
+      {/* Reputation Ranks */}
       <section className="section" style={{ borderTop: '1px solid var(--border-subtle)' }}>
         <div className="container">
           <div className="section-header">
-            <h2>Explorer <span className="text-gradient">Levels</span></h2>
-            <p>Progress through the network through verified participation.</p>
+            <h2>Explorer <span className="text-gradient">Ranks</span></h2>
+            <p>Build your reputation through verified participation.</p>
           </div>
           <div className="grid-2" style={{ maxWidth: 800, margin: '0 auto' }}>
             {[
-              { level: 1, title: 'Newcomer', req: 'Join the network', xp: '0 — 500 XP', color: 'var(--text-secondary)' },
-              { level: 2, title: 'Wanderer', req: '3 verified stays', xp: '500 — 1,200 XP', color: 'var(--accent-teal)' },
-              { level: 3, title: 'Voyager', req: '5 countries, 1 mission', xp: '1,200 — 2,000 XP', color: 'var(--accent-blue)' },
-              { level: 4, title: 'Pathfinder', req: '10 countries, 3 missions', xp: '2,000 — 3,000 XP', color: 'var(--accent-gold)' },
-              { level: 5, title: 'Navigator', req: '20 countries, mission leader', xp: '3,000 — 5,000 XP', color: 'var(--accent-purple)' },
-              { level: 6, title: 'World Architect', req: '30+ countries, community leader', xp: '5,000+ XP', color: 'var(--accent-rose)' },
-            ].map((lvl, i) => (
+              { title: 'Wanderer', req: '0 — 99 reputation', color: 'var(--text-secondary)' },
+              { title: 'Explorer', req: '100 — 299 reputation', color: 'var(--accent-teal)' },
+              { title: 'Pathfinder', req: '300 — 699 reputation', color: 'var(--accent-gold)' },
+              { title: 'Trailblazer', req: '700+ reputation', color: 'var(--accent-rose)' },
+            ].map((r, i) => (
               <div key={i} className="glass-card" style={{ padding: '20px 24px', display: 'flex', alignItems: 'center', gap: 16 }}>
-                <div style={{ width: 44, height: 44, borderRadius: 12, background: `${lvl.color}15`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem', fontWeight: 800, color: lvl.color, fontFamily: 'var(--font-display)', flexShrink: 0 }}>
-                  {lvl.level}
+                <div style={{ width: 44, height: 44, borderRadius: 12, background: `${r.color}15`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem', fontWeight: 800, color: r.color, fontFamily: 'var(--font-display)', flexShrink: 0 }}>
+                  {i + 1}
                 </div>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 600, marginBottom: 2 }}>{lvl.title}</div>
-                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{lvl.req} · {lvl.xp}</div>
+                  <div style={{ fontWeight: 600, marginBottom: 2 }}>{r.title}</div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{r.req}</div>
                 </div>
               </div>
             ))}

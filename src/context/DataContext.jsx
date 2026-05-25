@@ -672,8 +672,7 @@ export function DataProvider({ children }) {
   const importPastHistory = useCallback(({ countriesCount, staysCount }, usr, updateUser) => {
     updateUser({
       countries_count: usr.countries_count + countriesCount,
-      stays_count: usr.stays_count + staysCount,
-      xp: usr.xp + (countriesCount * 50) + (staysCount * 30)
+      stays_count: usr.stays_count + staysCount
     })
     addFeedEvent({
       type: 'import_history',

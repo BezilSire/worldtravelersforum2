@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react'
 import { useData } from '../context/DataContext.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
 import { supabase } from '../lib/supabase.js'
-import { Shield, Plus, X, CheckCircle2, XCircle, Landmark, Send, Globe, Trash2, Users, Mountain, Calendar, ArrowRight, Bell, Search, BarChart3, MapPin, TrendingUp } from 'lucide-react'
+import { Shield, Plus, X, CheckCircle2, XCircle, Landmark, Send, Globe, Trash2, Users, Mountain, Calendar, ArrowRight, Bell, Search, BarChart3, MapPin, Trophy } from 'lucide-react'
+import { calcReputation } from '../lib/reputation.js'
 
 export default function Admin() {
   const { user } = useAuth()
@@ -57,19 +58,12 @@ export default function Admin() {
   const totalStays = profiles.reduce((acc, p) => acc + (p.stays_count || 0), 0)
   const avgStays = totalExplorers > 0 ? (totalStays / totalExplorers).toFixed(1) : 0
 
-  const levelDistribution = profiles.reduce((acc, p) => {
-    const title = p.level_title || 'Newcomer'
-    acc[title] = (acc[title] || 0) + 1
-    return acc
-  }, {})
-
   const filteredProfiles = profiles.filter(p => {
     const query = searchQuery.toLowerCase()
     return (
       p.full_name?.toLowerCase().includes(query) ||
       p.username?.toLowerCase().includes(query) ||
-      p.home_country?.toLowerCase().includes(query) ||
-      p.level_title?.toLowerCase().includes(query)
+      p.home_country?.toLowerCase().includes(query)
     )
   })
 
@@ -385,35 +379,6 @@ export default function Admin() {
                     </div>
                   </div>
 
-                  {/* Right: Level & Ranks Distribution */}
-                  <div className="glass-card" style={{ padding: 32 }}>
-                    <h3 style={{ fontSize: '1.1rem', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <TrendingUp size={18} style={{ color: 'var(--accent-teal)' }} /> Network Rank Distribution
-                    </h3>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                      {Object.entries(levelDistribution)
-                        .sort((a, b) => b[1] - a[1])
-                        .map(([rank, count], idx) => {
-                          const pct = totalExplorers > 0 ? ((count / totalExplorers) * 100).toFixed(1) : 0
-                          return (
-                            <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
-                                <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{rank}</span>
-                                <span style={{ color: 'var(--text-secondary)' }}>{count} ({pct}%)</span>
-                              </div>
-                              <div style={{ height: 6, background: 'rgba(255,255,255,0.05)', borderRadius: 3, overflow: 'hidden' }}>
-                                <div style={{ 
-                                  height: '100%', 
-                                  background: 'var(--accent-teal)',
-                                  width: `${pct}%`,
-                                  borderRadius: 3
-                                }} />
-                              </div>
-                            </div>
-                          )
-                        })}
-                    </div>
-                  </div>
                 </div>
 
                 {/* Directory Table */}
@@ -484,10 +449,17 @@ export default function Admin() {
                                 {p.joined_date ? new Date(p.joined_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : 'N/A'}
                               </td>
                               <td style={{ padding: '16px' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                  <span className="badge badge-gold" style={{ fontSize: '0.75rem' }}>{p.level_title || 'Newcomer'}</span>
-                                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Lvl {p.level || 1}</span>
-                                </div>
+                                <span className="badge badge-gold" style={{ fontSize: '0.75rem' }}>
+                                  {calcReputation({
+                                    countriesCount: p.countries_count || 0,
+                                    staysCount: p.stays_count || 0,
+                                    postsCount: 0,
+                                    flightsCount: 0,
+                                    tripReportsCount: 0,
+                                    vouchesCount: p.vouches_count || 0,
+                                    missionsCount: p.missions_count || 0
+                                  }).rank}
+                                </span>
                               </td>
                               <td style={{ padding: '16px', textAlign: 'center', fontWeight: 600, color: 'var(--accent-blue)' }}>
                                 {p.stays_count || 0}

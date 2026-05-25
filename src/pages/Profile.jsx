@@ -1,7 +1,7 @@
 import { useAuth } from '../context/AuthContext.jsx'
 import { useData } from '../context/DataContext.jsx'
 import { Link, Navigate } from 'react-router-dom'
-import { MapPin, Globe, Shield, Star, Calendar, ArrowRight, Compass, CheckCircle, History, X, Plus, Camera, AlertTriangle, Heart, Instagram, Youtube, Music2, Edit3, LifeBuoy, FileText, Bell, Mountain, MessageSquare, ExternalLink, Trophy } from 'lucide-react'
+import { MapPin, Globe, Shield, Star, Calendar, ArrowRight, History, X, Plus, Camera, AlertTriangle, Heart, Instagram, Youtube, Music2, Edit3, LifeBuoy, FileText, Bell, Mountain, MessageSquare, ExternalLink, Trophy } from 'lucide-react'
 import { useState, useRef } from 'react'
 import { calcReputation } from '../lib/reputation.js'
 
@@ -40,8 +40,6 @@ export default function Profile() {
   const userStays = stays.filter(s => s.userId === user.id)
   const verifiedStays = userStays.filter(s => s.verified)
   const pendingStays = userStays.filter(s => !s.verified)
-  const xpPercent = user.xp_next > 0 ? Math.min((user.xp / user.xp_next) * 100, 100) : 0
-
   const myPosts = feed.filter(f => f.userId === user?.id && f.type === 'user_post')
   const rep = calcReputation({
     countriesCount: user.countries_count || 0,
@@ -85,7 +83,6 @@ export default function Profile() {
                     <h1 style={{ fontSize: '1.8rem' }}>{user.full_name || user.user_metadata?.full_name || user.user_metadata?.name || 'Explorer'}</h1>
                     {user.username && <div style={{ color: 'var(--accent-gold)', fontWeight: 600, fontSize: '0.9rem' }}>@{user.username}</div>}
                   </div>
-                  <span className="badge badge-gold">{user.level_title}</span>
                 </div>
                 <button onClick={() => reportUser({ to: user.id, from: 'current_user' })} style={{ color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: 8 }} title="Report User">
                   <AlertTriangle size={20} />
@@ -108,7 +105,6 @@ export default function Profile() {
 
               <div style={{ display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap', fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: 16 }}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Calendar size={14} /> Joined {user.joined_date}</span>
-                <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Compass size={14} /> Level {user.level}</span>
                 {user.home_country && (
                   <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><MapPin size={14} style={{ color: 'var(--accent-gold)' }} /> From {user.home_country}</span>
                 )}
@@ -123,15 +119,11 @@ export default function Profile() {
                 </button>
               </div>
 
-              {/* XP Bar */}
-              <div style={{ marginTop: 20, maxWidth: 400 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: 6, color: 'var(--text-secondary)' }}>
-                  <span>{user.xp} XP</span>
-                  <span>{user.xp_next} XP to next level</span>
-                </div>
-                <div className="level-bar-track">
-                  <div className="level-bar-fill" style={{ width: `${xpPercent}%` }} />
-                </div>
+              {/* Rank Badge */}
+              <div style={{ marginTop: 16 }}>
+                <span className="badge badge-gold" style={{ fontSize: '0.9rem', padding: '6px 18px' }}>
+                  <Trophy size={16} /> {rep.rank}
+                </span>
               </div>
             </div>
           </div>
@@ -182,8 +174,8 @@ export default function Profile() {
               <span style={{ color: 'var(--text-secondary)' }}>Total Score</span>
               <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{rep.totalScore}</span>
             </div>
-            <div className="level-bar-track" style={{ height: 8 }}>
-              <div className="level-bar-fill" style={{ width: `${Math.min((rep.totalScore / 700) * 100, 100)}%` }} />
+            <div className="score-bar-track" style={{ height: 8 }}>
+              <div className="score-bar-fill" style={{ width: `${Math.min((rep.totalScore / 700) * 100, 100)}%` }} />
             </div>
           </div>
 
