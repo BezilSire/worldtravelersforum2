@@ -4,6 +4,7 @@ import { useAuth } from './AuthContext.jsx'
 import { useBrowserNotifications } from '../hooks/useBrowserNotifications.js'
 import { getCache, setCache, bustCache } from '../lib/queryCache.js'
 import { debounce } from '../lib/debounce.js'
+import { checkRateLimit } from '../lib/rateLimit.js'
 
 const DataContext = createContext(null)
 
@@ -362,6 +363,7 @@ export function DataProvider({ children }) {
 
   const submitStay = async (stayData) => {
     if (!user) return
+    if (!checkRateLimit('submit_stay', 5)) return
     const { error } = await supabase.from('stays').insert({
       user_id: user.id,
       hotel: stayData.hotel,
@@ -395,6 +397,7 @@ export function DataProvider({ children }) {
 
   const createPost = async (postData) => {
     if (!user) return { success: false, error: new Error('Not authenticated') }
+    if (!checkRateLimit('create_post', 10)) return { success: false, error: new Error('Slow down — max 10 posts per minute') }
 
     const postId = genId()
     const newPost = {
@@ -463,6 +466,7 @@ export function DataProvider({ children }) {
 
   const deletePost = async (postId) => {
     if (!user) return
+    if (!checkRateLimit('delete_post', 10)) return
     try {
       const { error } = await supabase.from('posts').delete().eq('id', postId)
       if (!error) {
@@ -477,6 +481,7 @@ export function DataProvider({ children }) {
 
   const repostPost = async (postData) => {
     if (!user) return
+    if (!checkRateLimit('repost', 10)) return
     const repostText = `♻️ Repost\n\n${postData.text}\n\n— ${postData.originalAuthor}`
     try {
       const { error } = await supabase.from('posts').insert({
@@ -496,6 +501,7 @@ export function DataProvider({ children }) {
 
   const likePost = async (postId) => {
     if (!postId) return
+    if (!checkRateLimit(`like_${postId}`, 30)) return
     let newCount = 0
     updateFeedItem(postId, (item) => {
       newCount = (item.likes || 0) + 1
@@ -514,6 +520,7 @@ export function DataProvider({ children }) {
 
   const addComment = async (postId, comment) => {
     if (!user) return
+    if (!checkRateLimit(`comment_${postId}`, 10)) return
     bustCache('feed_page_')
     debounce(`comment_${postId}`, async () => {
       await supabase.from('comments').insert({
@@ -555,6 +562,7 @@ export function DataProvider({ children }) {
 
   const postToDiscussion = useCallback((destId, msg) => {
     if (!user) return
+    if (!checkRateLimit(`discussion_${destId}`, 15)) return
     const post = {
       id: genId(),
       user: user.full_name,
@@ -590,6 +598,7 @@ export function DataProvider({ children }) {
 
   const createMission = useCallback((form) => {
     if (!user) return
+    if (!checkRateLimit('create_mission', 3)) return
     const missionId = 'mission_' + genId()
     const newMission = {
       id: missionId,
@@ -655,6 +664,7 @@ export function DataProvider({ children }) {
 
   const joinMission = useCallback((missionId) => {
     if (!user) return
+    if (!checkRateLimit('join_mission', 5)) return
     setMissions(prev => {
       const updated = prev.map(m => {
         if (m.id !== missionId) return m
@@ -703,6 +713,7 @@ export function DataProvider({ children }) {
   }, [user])
 
   const vouchUser = useCallback(({ fromId, fromName, fromAvatar, toId, toName }) => {
+    if (!checkRateLimit(`vouch_${fromId}`, 10)) return
     addFeedEvent({
       type: 'vouch',
       user: fromName,
@@ -733,6 +744,7 @@ export function DataProvider({ children }) {
   }, [sendNotification])
 
   const sendMessage = useCallback(({ from, to, text }) => {
+    if (!checkRateLimit(`dm_${from?.id || user?.id}`, 20)) return
     const msg = {
       id: genId(),
       from,
@@ -763,6 +775,7 @@ export function DataProvider({ children }) {
   }, [user, sendNotification])
 
   const sendGroupMessage = useCallback((chatId, { from, text }) => {
+    if (!checkRateLimit(`group_msg_${chatId}`, 20)) return
     const msg = {
       id: genId(),
       from,
@@ -790,6 +803,7 @@ export function DataProvider({ children }) {
   }, [user])
 
   const applyToTestMission = useCallback((app) => {
+    if (!checkRateLimit('apply_test_mission', 5)) return
     const application = {
       id: genId(),
       ...app,
