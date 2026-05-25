@@ -177,6 +177,9 @@ create table if not exists public.group_chat_messages (
   user_id uuid references auth.users not null,
   user_name text,
   text text not null,
+  reactions jsonb default '{}'::jsonb,
+  edited boolean default false,
+  updated_at timestamptz,
   timestamp timestamptz default now()
 );
 
@@ -189,13 +192,21 @@ create policy "Group messages viewable by members." on public.group_chat_message
 );
 drop policy if exists "Users can message in groups." on public.group_chat_messages;
 create policy "Users can message in groups." on public.group_chat_messages for insert with check (auth.uid() = user_id);
+drop policy if exists "Users can update own group messages" on public.group_chat_messages;
+create policy "Users can update own group messages" on public.group_chat_messages for update using (auth.uid() = user_id);
+drop policy if exists "Users can delete own group messages" on public.group_chat_messages;
+create policy "Users can delete own group messages" on public.group_chat_messages for delete using (auth.uid() = user_id);
 
 -- Direct Messages
 create table if not exists public.direct_messages (
   id uuid default gen_random_uuid() primary key,
   sender_id uuid references auth.users not null,
+  sender_name text,
   receiver_id uuid references auth.users not null,
   text text not null,
+  reactions jsonb default '{}'::jsonb,
+  edited boolean default false,
+  updated_at timestamptz,
   timestamp timestamptz default now()
 );
 
@@ -206,6 +217,10 @@ create policy "Users can see their own DMs." on public.direct_messages for selec
 );
 drop policy if exists "Users can send DMs." on public.direct_messages;
 create policy "Users can send DMs." on public.direct_messages for insert with check (auth.uid() = sender_id);
+drop policy if exists "Users can update own DMs" on public.direct_messages;
+create policy "Users can update own DMs" on public.direct_messages for update using (auth.uid() = sender_id);
+drop policy if exists "Users can delete own DMs" on public.direct_messages;
+create policy "Users can delete own DMs" on public.direct_messages for delete using (auth.uid() = sender_id);
 
 -- Notifications
 create table if not exists public.notifications (

@@ -52,6 +52,8 @@ export function DataProvider({ children }) {
   const [groupChats, setGroupChats] = useState(loadJson('wtf_group_chats', []))
   const [notifications, setNotifications] = useState(loadJson('wtf_notifications', []))
   const [feedEvents, setFeedEvents] = useState(loadJson('wtf_feed_events', []))
+  const [allProfiles, setAllProfiles] = useState([])
+  const [dmHistory, setDmHistory] = useState([])
   const [testMissionApplications, setTestMissionApplications] = useState(loadJson('wtf_test_applications', []))
   const [testMissions, setTestMissions] = useState(loadJson('wtf_test_missions', [
     {
@@ -360,6 +362,251 @@ export function DataProvider({ children }) {
     }
     fetchMissions()
   }, [])
+
+  const realtimeRef = useRef(null)
+
+  useEffect(() => {
+    if (!user) return
+    supabase.from('profiles').select('id, full_name, avatar_url, username, home_country').then(({ data }) => {
+      if (data) setAllProfiles(data)
+    })
+  }, [user])
+
+  useEffect(() => {
+    if (!user) return
+    supabase.from('direct_messages')
+      .select('*')
+      .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`)
+      .order('timestamp', { ascending: false })
+      .limit(200)
+      .then(({ data }) => {
+        if (data) setDmHistory(data)
+      })
+  }, [user])
+
+  useEffect(() => {
+    if (!user) return
+    const channel = supabase.channel('chat_realtime')
+    channel.on('postgres_changes',
+      { event: 'INSERT', schema: 'public', table: 'direct_messages', filter: `receiver_id=eq.${user.id}` },
+      (payload) => {
+        const msg = {
+          id: payload.new.id,
+          from: payload.new.sender_name || 'Explorer',
+          fromId: payload.new.sender_id,
+          to: user.id,
+          toName: user.full_name,
+          text: payload.new.text,
+          timestamp: payload.new.timestamp,
+          reactions: payload.new.reactions || {},
+          edited: payload.new.edited || false
+        }
+        setMessages(prev => {
+          const exists = prev.some(m => m.id === msg.id)
+          if (exists) return prev
+          const next = [...prev, msg]
+          saveJson('wtf_messages', next)
+          return next
+        })
+        setDmHistory(prev => {
+          const exists = prev.some(m => m.id === msg.id)
+          if (exists) return prev
+          return [{ ...payload.new, sender_name: payload.new.sender_name || 'Explorer' }, ...prev]
+        })
+      }
+    )
+    channel.on('postgres_changes',
+      { event: 'INSERT', schema: 'public', table: 'direct_messages', filter: `sender_id=eq.${user.id}` },
+      (payload) => {
+        setDmHistory(prev => {
+          const exists = prev.some(m => m.id === payload.new.id)
+          if (exists) return prev
+          return [{ ...payload.new, sender_name: payload.new.sender_name || user.full_name }, ...prev]
+        })
+      }
+    )
+    channel.on('postgres_changes',
+      { event: 'UPDATE', schema: 'public', table: 'direct_messages', filter: `or=(sender_id.eq.${user.id},receiver_id.eq.${user.id})` },
+      (payload) => {
+        setMessages(prev => {
+          const next = prev.map(m => m.id === payload.new.id ? { ...m, text: payload.new.text, edited: payload.new.edited, reactions: payload.new.reactions || {} } : m)
+          saveJson('wtf_messages', next)
+          return next
+        })
+        setDmHistory(prev => prev.map(m => m.id === payload.new.id ? { ...m, ...payload.new } : m))
+      }
+    )
+    channel.on('postgres_changes',
+      { event: 'DELETE', schema: 'public', table: 'direct_messages', filter: `or=(sender_id.eq.${user.id},receiver_id.eq.${user.id})` },
+      (payload) => {
+        setMessages(prev => {
+          const next = prev.filter(m => m.id !== payload.old.id)
+          saveJson('wtf_messages', next)
+          return next
+        })
+        setDmHistory(prev => prev.filter(m => m.id !== payload.old.id))
+      }
+    )
+    channel.on('postgres_changes',
+      { event: 'INSERT', schema: 'public', table: 'group_chat_messages' },
+      (payload) => {
+        if (payload.new.user_id === user.id) return
+        const msg = {
+          id: payload.new.id,
+          from: payload.new.user_name || 'Explorer',
+          fromId: payload.new.user_id,
+          text: payload.new.text,
+          timestamp: payload.new.timestamp,
+          reactions: payload.new.reactions || {},
+          edited: payload.new.edited || false
+        }
+        setGroupChats(prev => {
+          const next = prev.map(gc => {
+            if (gc.id !== payload.new.group_chat_id) return gc
+            const exists = (gc.messages || []).some(m => m.id === msg.id)
+            if (exists) return gc
+            return { ...gc, messages: [...(gc.messages || []), msg] }
+          })
+          saveJson('wtf_group_chats', next)
+          return next
+        })
+      }
+    )
+    channel.on('postgres_changes',
+      { event: 'UPDATE', schema: 'public', table: 'group_chat_messages' },
+      (payload) => {
+        setGroupChats(prev => {
+          const next = prev.map(gc => {
+            if (!gc.messages) return gc
+            return { ...gc, messages: gc.messages.map(m => m.id === payload.new.id ? { ...m, text: payload.new.text, edited: payload.new.edited, reactions: payload.new.reactions || {} } : m) }
+          })
+          saveJson('wtf_group_chats', next)
+          return next
+        })
+      }
+    )
+    channel.on('postgres_changes',
+      { event: 'DELETE', schema: 'public', table: 'group_chat_messages' },
+      (payload) => {
+        setGroupChats(prev => {
+          const next = prev.map(gc => {
+            if (!gc.messages) return gc
+            return { ...gc, messages: gc.messages.filter(m => m.id !== payload.old.id) }
+          })
+          saveJson('wtf_group_chats', next)
+          return next
+        })
+      }
+    )
+    channel.subscribe()
+    realtimeRef.current = channel
+    return () => { supabase.removeChannel(channel) }
+  }, [user])
+
+  const editMessage = useCallback((messageId, newText, chatType) => {
+    if (!user || !newText.trim()) return
+    if (chatType === 'dm') {
+      setMessages(prev => {
+        const next = prev.map(m => m.id === messageId ? { ...m, text: newText, edited: true, timestamp: m.timestamp } : m)
+        saveJson('wtf_messages', next)
+        return next
+      })
+      supabase.from('direct_messages').update({ text: newText, edited: true, updated_at: new Date().toISOString() }).eq('id', messageId).then(({ error }) => {
+        if (error) console.error('edit DM failed:', error)
+      })
+    } else {
+      setGroupChats(prev => {
+        const next = prev.map(gc => {
+          if (!gc.messages) return gc
+          return { ...gc, messages: gc.messages.map(m => m.id === messageId ? { ...m, text: newText, edited: true } : m) }
+        })
+        saveJson('wtf_group_chats', next)
+        return next
+      })
+      supabase.from('group_chat_messages').update({ text: newText, edited: true, updated_at: new Date().toISOString() }).eq('id', messageId).then(({ error }) => {
+        if (error) console.error('edit group msg failed:', error)
+      })
+    }
+  }, [user])
+
+  const deleteMessage = useCallback((messageId, chatType) => {
+    if (!user) return
+    if (chatType === 'dm') {
+      setMessages(prev => {
+        const next = prev.filter(m => m.id !== messageId)
+        saveJson('wtf_messages', next)
+        return next
+      })
+      supabase.from('direct_messages').delete().eq('id', messageId).then(({ error }) => {
+        if (error) console.error('delete DM failed:', error)
+      })
+    } else {
+      setGroupChats(prev => {
+        const next = prev.map(gc => {
+          if (!gc.messages) return gc
+          return { ...gc, messages: gc.messages.filter(m => m.id !== messageId) }
+        })
+        saveJson('wtf_group_chats', next)
+        return next
+      })
+      supabase.from('group_chat_messages').delete().eq('id', messageId).then(({ error }) => {
+        if (error) console.error('delete group msg failed:', error)
+      })
+    }
+  }, [user])
+
+  const reactToMessage = useCallback((messageId, emoji, chatType) => {
+    if (!user) return
+    const applyReaction = (msg) => {
+      const reactions = { ...(msg.reactions || {}) }
+      const users = reactions[emoji] || []
+      const idx = users.indexOf(user.id)
+      if (idx > -1) {
+        users.splice(idx, 1)
+        if (users.length === 0) delete reactions[emoji]
+        else reactions[emoji] = users
+      } else {
+        reactions[emoji] = [...users, user.id]
+      }
+      return { ...msg, reactions }
+    }
+    if (chatType === 'dm') {
+      let updatedMsg = null
+      setMessages(prev => {
+        const next = prev.map(m => {
+          if (m.id !== messageId) return m
+          updatedMsg = applyReaction(m)
+          return updatedMsg
+        })
+        saveJson('wtf_messages', next)
+        return next
+      })
+      if (updatedMsg) {
+        supabase.from('direct_messages').update({ reactions: updatedMsg.reactions }).eq('id', messageId).then(({ error }) => {
+          if (error) console.error('react DM failed:', error)
+        })
+      }
+    } else {
+      let updatedMsg = null
+      setGroupChats(prev => {
+        const next = prev.map(gc => {
+          if (!gc.messages) return gc
+          return { ...gc, messages: gc.messages.map(m => {
+            if (m.id !== messageId) return m
+            updatedMsg = applyReaction(m)
+            return updatedMsg
+          })}
+        })
+        saveJson('wtf_group_chats', next)
+        return next
+      })
+      if (updatedMsg) {
+        supabase.from('group_chat_messages').update({ reactions: updatedMsg.reactions }).eq('id', messageId).then(({ error }) => {
+          if (error) console.error('react group msg failed:', error)
+        })
+      }
+    }
+  }, [user])
 
   const submitStay = async (stayData) => {
     if (!user) return
@@ -745,9 +992,11 @@ export function DataProvider({ children }) {
 
   const sendMessage = useCallback(({ from, to, text }) => {
     if (!checkRateLimit(`dm_${from?.id || user?.id}`, 20)) return
+    const msgId = crypto.randomUUID()
     const msg = {
-      id: genId(),
-      from,
+      id: msgId,
+      from: from?.name || from || 'Explorer',
+      fromId: from?.id || user?.id,
       to,
       text,
       timestamp: new Date().toISOString()
@@ -759,12 +1008,12 @@ export function DataProvider({ children }) {
     })
     if (user && from?.id) {
       supabase.from('direct_messages').insert({
+        id: msgId,
         sender_id: from.id,
+        sender_name: from.name || user.full_name,
         receiver_id: to,
         text
-      }).then(({ error }) => {
-        if (error) console.error('direct_messages insert failed:', error)
-      })
+      }).catch(err => console.error('direct_messages insert failed:', err))
     }
     if (to !== user?.id) {
       sendNotification(`New message from ${from?.name || 'Explorer'}`, {
@@ -776,9 +1025,11 @@ export function DataProvider({ children }) {
 
   const sendGroupMessage = useCallback((chatId, { from, text }) => {
     if (!checkRateLimit(`group_msg_${chatId}`, 20)) return
+    const msgId = crypto.randomUUID()
     const msg = {
-      id: genId(),
-      from,
+      id: msgId,
+      from: from?.name || from || 'Explorer',
+      fromId: from?.id || user?.id,
       text,
       timestamp: new Date().toISOString()
     }
@@ -792,13 +1043,12 @@ export function DataProvider({ children }) {
     })
     if (user && from?.id) {
       supabase.from('group_chat_messages').insert({
+        id: msgId,
         group_chat_id: chatId,
         user_id: from.id,
         user_name: from.name || 'Explorer',
         text
-      }).then(({ error }) => {
-        if (error) console.error('group_chat_messages insert failed:', error)
-      })
+      }).catch(err => console.error('group_chat_messages insert failed:', err))
     }
   }, [user])
 
@@ -999,11 +1249,13 @@ export function DataProvider({ children }) {
     discussions, messages, groupChats, notifications,
     testMissions, testMissionApplications,
     feedEvents, userVouches, loadingFeed, feedHasMore,
+    allProfiles, dmHistory,
 
     submitStay, createPost, deletePost, repostPost, likePost, addComment,
     startDiscussion, postToDiscussion,
     createMission, joinMission, vouchUser,
     sendMessage, sendGroupMessage,
+    editMessage, deleteMessage, reactToMessage,
     applyToTestMission, updateTestMissionApplicationStatus,
     importPastHistory, reportUser,
     addFeedEvent, addNotification, markNotifRead, clearNotifs,
