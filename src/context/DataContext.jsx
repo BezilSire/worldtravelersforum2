@@ -1,7 +1,9 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../lib/supabase.js'
 import { useAuth } from './AuthContext.jsx'
 import { useBrowserNotifications } from '../hooks/useBrowserNotifications.js'
+import { getCache, setCache, bustCache } from '../lib/queryCache.js'
+import { debounce } from '../lib/debounce.js'
 
 const DataContext = createContext(null)
 
@@ -91,6 +93,11 @@ export function DataProvider({ children }) {
 
   const [userVouches, setUserVouches] = useState(loadJson('wtf_user_vouches', {}))
 
+  const [feedPage, setFeedPage] = useState(0)
+  const [feedHasMore, setFeedHasMore] = useState(true)
+  const [loadingFeed, setLoadingFeed] = useState(false)
+  const FEED_PAGE_SIZE = 25
+
   const persistMessages = (v) => { setMessages(v); saveJson('wtf_messages', v) }
   const persistDiscussions = (v) => { setDiscussions(v); saveJson('wtf_discussions', v) }
   const persistGroupChats = (v) => { setGroupChats(v); saveJson('wtf_group_chats', v) }
@@ -106,6 +113,18 @@ export function DataProvider({ children }) {
       saveJson('wtf_feed_events', next)
       return next
     })
+    if (event.userId) {
+      supabase.from('feed_events').insert({
+        user_id: event.userId,
+        type: event.type || 'system_update',
+        text: event.text || '',
+        user_name: event.user,
+        user_avatar: event.avatar || event.user?.charAt(0).toUpperCase(),
+        flair: event.flair || 'system_update'
+      }).then(({ error }) => {
+        if (error) console.error('feed_events insert failed:', error)
+      })
+    }
     return e
   }, [])
 
@@ -116,18 +135,45 @@ export function DataProvider({ children }) {
       saveJson('wtf_notifications', next)
       return next
     })
+    if (userId) {
+      supabase.from('notifications').insert({
+        user_id: userId,
+        type: notif.type || 'general',
+        title: notif.title || '',
+        body: notif.body || '',
+        link: notif.link || '',
+        read: false
+      }).then(({ error }) => {
+        if (error) console.error('notifications insert failed:', error)
+      })
+    }
     return n
   }, [])
 
-  const fetchFeed = useCallback(async () => {
+  const fetchFeed = useCallback(async (page = 0, append = false) => {
     if (!user) { setFeed([]); return }
+    if (loadingFeed) return
+
+    const cacheKey = `feed_page_${page}`
+    const cached = getCache(cacheKey)
+    if (cached && !append) {
+      setFeed(cached.data)
+      setFeedHasMore(cached.hasMore)
+      return
+    }
+
+    setLoadingFeed(true)
+    const from = page * FEED_PAGE_SIZE
+    const to = from + FEED_PAGE_SIZE - 1
 
     const { data, error } = await supabase
       .from('posts')
-      .select('*')
+      .select('id, user_id, text, image_url, flair, likes_count, timestamp')
       .order('timestamp', { ascending: false })
+      .range(from, to)
 
     if (!error && data) {
+      const hasMore = data.length === FEED_PAGE_SIZE
       const userIds = [...new Set(data.map(p => p.user_id))]
       const { data: profiles } = await supabase
         .from('profiles')
@@ -170,7 +216,7 @@ export function DataProvider({ children }) {
         }
       }
 
-      setFeed(data.map(post => ({
+      const mapped = data.map(post => ({
         id: post.id,
         userId: post.user_id,
         user: profileMap[post.user_id]?.full_name || 'Explorer',
@@ -182,14 +228,32 @@ export function DataProvider({ children }) {
         timestamp: post.timestamp,
         type: post.flair === 'system_update' ? post.flair : 'user_post',
         comments: commentsByPost[post.id] || []
-      })))
+      }))
+
+      setCache(cacheKey, { data: mapped, hasMore }, 'feed')
+
+      if (append) {
+        setFeed(prev => [...prev, ...mapped])
+      } else {
+        setFeed(mapped)
+        setFeedPage(0)
+      }
+      setFeedHasMore(hasMore)
     } else if (error) {
       console.error('Failed to fetch feed:', error)
     }
-  }, [user])
+    setLoadingFeed(false)
+  }, [user, loadingFeed])
+
+  const loadMoreFeed = useCallback(() => {
+    if (!feedHasMore || loadingFeed) return
+    const nextPage = feedPage + 1
+    setFeedPage(nextPage)
+    fetchFeed(nextPage, true)
+  }, [feedHasMore, loadingFeed, feedPage, fetchFeed])
 
   useEffect(() => {
-    fetchFeed()
+    fetchFeed(0, false)
   }, [fetchFeed])
 
   useEffect(() => {
@@ -208,22 +272,35 @@ export function DataProvider({ children }) {
   useEffect(() => {
     if (!user) { setStays([]); return }
     async function fetchStays() {
+      const cacheKey = `stays_${user.id}`
+      const cached = getCache(cacheKey)
+      if (cached) { setStays(cached); return }
+
       const { data, error } = await supabase
         .from('stays')
         .select('*')
         .eq('user_id', user.id)
         .order('timestamp', { ascending: false })
-      if (!error) setStays(data)
+        .range(0, 99)
+      if (!error) {
+        setStays(data)
+        setCache(cacheKey, data, 'stays')
+      }
     }
     fetchStays()
   }, [user])
 
   useEffect(() => {
     async function fetchMissions() {
+      const cacheKey = 'missions_all'
+      const cached = getCache(cacheKey)
+      if (cached) { setMissions(cached); return }
+
       const { data, error } = await supabase
         .from('missions')
         .select('*')
         .order('timestamp', { ascending: false })
+        .range(0, 99)
 
       if (!error) {
         const loaded = data.map(m => ({
@@ -251,14 +328,33 @@ export function DataProvider({ children }) {
           timestamp: m.timestamp
         }))
 
+        const { data: participantsData } = await supabase
+          .from('mission_participants')
+          .select('mission_id, user_id, status')
+
+        const participantMap = {}
+        if (participantsData) {
+          for (const p of participantsData) {
+            if (!participantMap[p.mission_id]) {
+              participantMap[p.mission_id] = { participants: [], interested: [] }
+            }
+            if (p.status === 'active') {
+              participantMap[p.mission_id].participants.push(p.user_id)
+            } else {
+              participantMap[p.mission_id].interested.push(p.user_id)
+            }
+          }
+        }
+
         const stored = loadJson('wtf_mission_participants', {})
         const withParticipants = loaded.map(m => ({
           ...m,
-          participants: stored[m.id]?.participants || [],
-          interested: stored[m.id]?.interested || []
+          participants: participantMap[m.id]?.participants || stored[m.id]?.participants || [],
+          interested: participantMap[m.id]?.interested || stored[m.id]?.interested || []
         }))
 
         setMissions(withParticipants)
+        setCache(cacheKey, withParticipants, 'missions')
       }
     }
     fetchMissions()
@@ -275,6 +371,7 @@ export function DataProvider({ children }) {
       check_out: stayData.checkOut
     })
     if (!error) {
+      bustCache(`stays_${user.id}`)
       const { data } = await supabase.from('stays').select('*').eq('user_id', user.id)
       setStays(data)
       submitStayFeedEvent(user, stayData)
@@ -321,18 +418,21 @@ export function DataProvider({ children }) {
       return next
     })
 
-    try {
-      const { error } = await supabase
-        .from('posts')
-        .insert({ user_id: user.id, text: postData.text })
-      if (!error) {
-        try { await fetchFeed() } catch (_) {}
-      } else {
-        console.error('DB insert failed (post kept locally):', error)
+    bustCache('feed_page_')
+    debounce('create_post', async () => {
+      try {
+        const { error } = await supabase
+          .from('posts')
+          .insert({ user_id: user.id, text: postData.text })
+        if (!error) {
+          try { await fetchFeed(0, false) } catch (_) {}
+        } else {
+          console.error('DB insert failed (post kept locally):', error)
+        }
+      } catch (e) {
+        console.error('DB insert threw (post kept locally):', e)
       }
-    } catch (e) {
-      console.error('DB insert threw (post kept locally):', e)
-    }
+    }, 300)
 
     return { success: true }
   }
@@ -402,20 +502,26 @@ export function DataProvider({ children }) {
       return { ...item, likes: newCount }
     })
     if (!newCount) return
-    try {
-      await supabase.from('posts').update({ likes_count: newCount }).eq('id', postId)
-    } catch (e) {
-      console.error('like failed', e)
-    }
+    bustCache('feed_page_')
+    debounce(`like_${postId}`, async () => {
+      try {
+        await supabase.from('posts').update({ likes_count: newCount }).eq('id', postId)
+      } catch (e) {
+        console.error('like failed', e)
+      }
+    }, 300)
   }
 
   const addComment = async (postId, comment) => {
     if (!user) return
-    await supabase.from('comments').insert({
-      post_id: postId,
-      user_id: user.id,
-      text: comment.text
-    })
+    bustCache('feed_page_')
+    debounce(`comment_${postId}`, async () => {
+      await supabase.from('comments').insert({
+        post_id: postId,
+        user_id: user.id,
+        text: comment.text
+      })
+    }, 300)
   }
 
   const startDiscussion = useCallback((countryName) => {
@@ -436,6 +542,13 @@ export function DataProvider({ children }) {
         userId: user.id,
         text: `started a new coordination hub for ${countryName}`
       })
+      supabase.from('discussions').insert({
+        id,
+        destination: countryName,
+        created_by: user.id
+      }).then(({ error }) => {
+        if (error) console.error('discussions insert failed:', error)
+      })
     }
     return id
   }, [user])
@@ -455,6 +568,15 @@ export function DataProvider({ children }) {
       const next = { ...prev, [destId]: [...existing, post] }
       saveJson('wtf_discussions', next)
       return next
+    })
+    supabase.from('discussion_posts').insert({
+      discussion_id: destId,
+      user_id: user.id,
+      user_name: user.full_name,
+      text: msg.text,
+      parent_id: msg.parentId || null
+    }).then(({ error }) => {
+      if (error) console.error('discussion_posts insert failed:', error)
     })
   }, [user])
 
@@ -501,6 +623,20 @@ export function DataProvider({ children }) {
       userId: user.id,
       text: `launched a new mission: ${form.title}`
     })
+    bustCache('missions_all')
+    if (user) {
+      supabase.from('missions').insert({
+        title: form.title,
+        type: form.type || 'Custom',
+        description: form.description,
+        cities: form.countries?.[0] || 'Global',
+        spots_left: form.maxParticipants || 12,
+        creator_id: user.id,
+        creator_name: user.full_name
+      }).then(({ error }) => {
+        if (error) console.error('missions insert failed:', error)
+      })
+    }
     const chatId = 'chat_' + genId()
     const newChat = {
       id: chatId,
@@ -538,6 +674,16 @@ export function DataProvider({ children }) {
       userId: user.id,
       text: `joined mission`
     })
+    bustCache('missions_all')
+    if (user) {
+      supabase.from('mission_participants').insert({
+        mission_id: missionId,
+        user_id: user.id,
+        status: 'active'
+      }).then(({ error }) => {
+        if (error) console.error('mission_participants insert failed:', error)
+      })
+    }
     setGroupChats(prev => {
       const next = prev.map(gc => {
         if (gc.missionId === missionId && !gc.participants.includes(user.id)) {
@@ -578,6 +724,12 @@ export function DataProvider({ children }) {
       saveJson('wtf_user_vouches', next)
       return next
     })
+    supabase.from('vouches').insert({
+      from_id: fromId,
+      to_id: toId
+    }).then(({ error }) => {
+      if (error) console.error('vouches insert failed:', error)
+    })
   }, [sendNotification])
 
   const sendMessage = useCallback(({ from, to, text }) => {
@@ -593,6 +745,15 @@ export function DataProvider({ children }) {
       saveJson('wtf_messages', next)
       return next
     })
+    if (user && from?.id) {
+      supabase.from('direct_messages').insert({
+        sender_id: from.id,
+        receiver_id: to,
+        text
+      }).then(({ error }) => {
+        if (error) console.error('direct_messages insert failed:', error)
+      })
+    }
     if (to !== user?.id) {
       sendNotification(`New message from ${from?.name || 'Explorer'}`, {
         body: text?.slice(0, 100),
@@ -616,7 +777,17 @@ export function DataProvider({ children }) {
       saveJson('wtf_group_chats', next)
       return next
     })
-  }, [])
+    if (user && from?.id) {
+      supabase.from('group_chat_messages').insert({
+        group_chat_id: chatId,
+        user_id: from.id,
+        user_name: from.name || 'Explorer',
+        text
+      }).then(({ error }) => {
+        if (error) console.error('group_chat_messages insert failed:', error)
+      })
+    }
+  }, [user])
 
   const applyToTestMission = useCallback((app) => {
     const application = {
@@ -636,6 +807,16 @@ export function DataProvider({ children }) {
         user: user.full_name,
         userId: user.id,
         text: `applied for test mission: ${app.missionTitle}`
+      })
+      supabase.from('test_mission_applications').insert({
+        user_id: user.id,
+        mission_title: app.missionTitle,
+        user_name: user.full_name,
+        country: app.country,
+        message: app.message,
+        status: 'pending'
+      }).then(({ error }) => {
+        if (error) console.error('test_mission_applications insert failed:', error)
       })
     }
   }, [user])
@@ -667,6 +848,11 @@ export function DataProvider({ children }) {
       saveJson('wtf_test_applications', next)
       return next
     })
+    if (status === 'approved') {
+      supabase.from('test_mission_applications').update({ status }).eq('id', appId).then(({ error }) => {
+        if (error) console.error('test_mission_applications update failed:', error)
+      })
+    }
   }, [])
 
   const importPastHistory = useCallback(({ countriesCount, staysCount }, usr, updateUser) => {
@@ -741,6 +927,20 @@ export function DataProvider({ children }) {
       saveJson('wtf_test_missions', updated)
       return updated
     })
+    supabase.from('test_missions').insert({
+      title: mission.title,
+      type: mission.type,
+      destination: mission.destination,
+      city: mission.city,
+      description: mission.description,
+      duration: mission.duration,
+      support: mission.support || [],
+      requirements: mission.requirements || [],
+      image: mission.image,
+      image_url: mission.image_url
+    }).then(({ error }) => {
+      if (error) console.error('test_missions insert failed:', error)
+    })
   }, [])
 
   const removeTestMission = useCallback((id) => {
@@ -784,7 +984,7 @@ export function DataProvider({ children }) {
     stays, missions, feed: combinedFeed, fund, destinations, loading,
     discussions, messages, groupChats, notifications,
     testMissions, testMissionApplications,
-    feedEvents, userVouches,
+    feedEvents, userVouches, loadingFeed, feedHasMore,
 
     submitStay, createPost, deletePost, repostPost, likePost, addComment,
     startDiscussion, postToDiscussion,
@@ -793,7 +993,7 @@ export function DataProvider({ children }) {
     applyToTestMission, updateTestMissionApplicationStatus,
     importPastHistory, reportUser,
     addFeedEvent, addNotification, markNotifRead, clearNotifs,
-    unreadCount,
+    unreadCount, loadMoreFeed,
     isAdmin, updateFundData, postSystemBroadcast, addTestMission, removeTestMission
   }
 

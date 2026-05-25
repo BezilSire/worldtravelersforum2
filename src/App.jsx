@@ -18,6 +18,7 @@ import Privacy from './pages/Privacy.jsx'
 import Terms from './pages/Terms.jsx'
 import Admin from './pages/Admin.jsx'
 import ProtectedRoute from './components/ProtectedRoute.jsx'
+import { ErrorBoundary } from './components/ErrorBoundary.jsx'
 
 export default function App() {
   const { user } = useAuth()
@@ -26,24 +27,24 @@ export default function App() {
       <Navbar />
       <main className="main-content">
         <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/auth" element={<Auth />} />
-          <Route path="/privacy" element={<Privacy />} />
-          <Route path="/terms" element={<Terms />} />
+          <Route path="/" element={<ErrorBoundary name="Home"><Home /></ErrorBoundary>} />
+          <Route path="/auth" element={<ErrorBoundary name="Auth"><Auth /></ErrorBoundary>} />
+          <Route path="/privacy" element={<ErrorBoundary name="Privacy"><Privacy /></ErrorBoundary>} />
+          <Route path="/terms" element={<ErrorBoundary name="Terms"><Terms /></ErrorBoundary>} />
           
           {/* Protected Routes */}
-          <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-          <Route path="/missions" element={<ProtectedRoute><Missions /></ProtectedRoute>} />
-          <Route path="/feed" element={<ProtectedRoute><Feed /></ProtectedRoute>} />
-          <Route path="/fund" element={<ProtectedRoute><Fund /></ProtectedRoute>} />
-          <Route path="/claim" element={<ProtectedRoute><ClaimStay /></ProtectedRoute>} />
-          <Route path="/destinations" element={<ProtectedRoute><Destinations /></ProtectedRoute>} />
-          <Route path="/destinations/:id" element={<ProtectedRoute><DestinationDiscussion /></ProtectedRoute>} />
-          <Route path="/messages" element={<ProtectedRoute><Messages /></ProtectedRoute>} />
-          <Route path="/explorer/:id" element={<ProtectedRoute><ExplorerProfile /></ProtectedRoute>} />
-          <Route path="/test-missions" element={<ProtectedRoute><TestMissions /></ProtectedRoute>} />
-          <Route path="/bookings" element={<ProtectedRoute><Bookings /></ProtectedRoute>} />
-          <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
+          <Route path="/profile" element={<ProtectedRoute><ErrorBoundary name="Profile"><Profile /></ErrorBoundary></ProtectedRoute>} />
+          <Route path="/missions" element={<ProtectedRoute><ErrorBoundary name="Missions"><Missions /></ErrorBoundary></ProtectedRoute>} />
+          <Route path="/feed" element={<ProtectedRoute><ErrorBoundary name="Feed"><Feed /></ErrorBoundary></ProtectedRoute>} />
+          <Route path="/fund" element={<ProtectedRoute><ErrorBoundary name="Fund"><Fund /></ErrorBoundary></ProtectedRoute>} />
+          <Route path="/claim" element={<ProtectedRoute><ErrorBoundary name="ClaimStay"><ClaimStay /></ErrorBoundary></ProtectedRoute>} />
+          <Route path="/destinations" element={<ProtectedRoute><ErrorBoundary name="Destinations"><Destinations /></ErrorBoundary></ProtectedRoute>} />
+          <Route path="/destinations/:id" element={<ProtectedRoute><ErrorBoundary name="Discussion"><DestinationDiscussion /></ErrorBoundary></ProtectedRoute>} />
+          <Route path="/messages" element={<ProtectedRoute><ErrorBoundary name="Messages"><Messages /></ErrorBoundary></ProtectedRoute>} />
+          <Route path="/explorer/:id" element={<ProtectedRoute><ErrorBoundary name="Profile"><ExplorerProfile /></ErrorBoundary></ProtectedRoute>} />
+          <Route path="/test-missions" element={<ProtectedRoute><ErrorBoundary name="TestMissions"><TestMissions /></ErrorBoundary></ProtectedRoute>} />
+          <Route path="/bookings" element={<ProtectedRoute><ErrorBoundary name="Bookings"><Bookings /></ErrorBoundary></ProtectedRoute>} />
+          <Route path="/admin" element={<ProtectedRoute><ErrorBoundary name="Admin"><Admin /></ErrorBoundary></ProtectedRoute>} />
         </Routes>
       </main>
     </div>
