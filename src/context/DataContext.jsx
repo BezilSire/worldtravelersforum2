@@ -98,6 +98,26 @@ export function DataProvider({ children }) {
   ]))
 
   const [userVouches, setUserVouches] = useState(loadJson('wtf_user_vouches', {}))
+  const DEFAULT_RESOURCES = [
+    { id: 'visa', label: 'Visas & Entry', icon: 'globe', tips: [] },
+    { id: 'safety', label: 'Safety Tips', icon: 'shield', tips: [] },
+    { id: 'internet', label: 'Internet & SIM', icon: 'wifi', tips: [] },
+    { id: 'transport', label: 'Getting Around', icon: 'car', tips: [] },
+    { id: 'accommodation', label: 'Where to Stay', icon: 'map-pin', tips: [] },
+    { id: 'budget', label: 'Cost & Budget', icon: 'dollar', tips: [] },
+    { id: 'food', label: 'Food & Culture', icon: 'utensils', tips: [] },
+  ]
+  const [destinationResources, setDestinationResources] = useState(() => {
+    const saved = loadJson('wtf_destination_resources', {})
+    Object.keys(saved).forEach(k => {
+      saved[k] = DEFAULT_RESOURCES.map(def => {
+        const existing = saved[k].find(r => r.id === def.id)
+        return existing || { ...def }
+      })
+    })
+    return saved
+  })
+  const persistDestinationResources = (v) => { setDestinationResources(v); saveJson('wtf_destination_resources', v) }
 
   const [feedPage, setFeedPage] = useState(0)
   const [feedHasMore, setFeedHasMore] = useState(true)
@@ -880,12 +900,14 @@ export function DataProvider({ children }) {
   const postToDiscussion = useCallback((destId, msg) => {
     if (!user) return
     if (!checkRateLimit(`discussion_${destId}`, 15)) return
+    const topic = msg.topic || 'general'
     const post = {
       id: genId(),
       user: user.full_name,
       userId: user.id,
       text: msg.text,
       parentId: msg.parentId || null,
+      topic,
       timestamp: new Date().toISOString()
     }
     setDiscussions(prev => {
@@ -899,9 +921,22 @@ export function DataProvider({ children }) {
       user_id: user.id,
       user_name: user.full_name,
       text: msg.text,
-      parent_id: msg.parentId || null
+      parent_id: msg.parentId || null,
+      topic
     }).then(({ error }) => {
       if (error) console.error('discussion_posts insert failed:', error)
+    })
+  }, [user])
+
+  const addResourceTip = useCallback((destId, resourceId, tip) => {
+    if (!user || !tip.trim()) return
+    setDestinationResources(prev => {
+      const destRsrcs = prev[destId]
+        ? prev[destId].map(r => r.id === resourceId ? { ...r, tips: [...r.tips, { text: tip, user: user.full_name, userId: user.id, timestamp: new Date().toISOString() }] } : r)
+        : DEFAULT_RESOURCES.map(r => r.id === resourceId ? { ...r, tips: [{ text: tip, user: user.full_name, userId: user.id, timestamp: new Date().toISOString() }] } : { ...r })
+      const next = { ...prev, [destId]: destRsrcs }
+      saveJson('wtf_destination_resources', next)
+      return next
     })
   }, [user])
 
@@ -1381,7 +1416,7 @@ export function DataProvider({ children }) {
     discussions, messages, groupChats, notifications,
     testMissions, testMissionApplications,
     feedEvents, userVouches, loadingFeed, feedHasMore,
-    allProfiles, dmHistory, bookmarks, followedDestinations, destinationMembers,
+    allProfiles, dmHistory, bookmarks, followedDestinations, destinationMembers, destinationResources, DEFAULT_RESOURCES,
 
     submitStay, createPost, deletePost, repostPost, likePost, addComment,
     startDiscussion, postToDiscussion,
@@ -1390,6 +1425,7 @@ export function DataProvider({ children }) {
     sendMessage, sendGroupMessage,
     editMessage, deleteMessage, reactToMessage,
     saveBookmark, removeBookmark, shareToDiscussion,
+    addResourceTip,
     applyToTestMission, updateTestMissionApplicationStatus,
     importPastHistory, reportUser,
     addFeedEvent, addNotification, markNotifRead, clearNotifs,
