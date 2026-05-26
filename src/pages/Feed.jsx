@@ -49,7 +49,7 @@ function getExplorerId(userId) {
 }
 
 export default function Feed() {
-  const { feed, createPost, deletePost, repostPost, likePost, addComment, destinations } = useData()
+  const { feed, createPost, deletePost, repostPost, likePost, addComment, destinations, userLikes } = useData()
   const { user } = useAuth()
   const [postText, setPostText] = useState('')
   const [postImage, setPostImage] = useState('')
@@ -290,9 +290,9 @@ export default function Feed() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 24, marginTop: 16 }}>
                       <button 
                         onClick={() => likePost(item.id)}
-                        style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.9rem', color: item.likes > 0 ? 'var(--accent-gold)' : 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', transition: 'all 0.2s' }}
+                        style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.9rem', color: userLikes?.[item.id] ? 'var(--accent-gold)' : 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', transition: 'all 0.2s' }}
                       >
-                        <Heart size={18} fill={item.likes > 0 ? 'var(--accent-gold)' : 'none'} color={item.likes > 0 ? 'var(--accent-gold)' : 'currentColor'} /> {item.likes}
+                        <Heart size={18} fill={userLikes?.[item.id] ? 'var(--accent-gold)' : 'none'} color={userLikes?.[item.id] ? 'var(--accent-gold)' : 'currentColor'} /> {item.likes}
                       </button>
                       <button 
                         onClick={() => toggleComments(item.id)}
