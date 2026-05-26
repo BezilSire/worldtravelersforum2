@@ -978,6 +978,21 @@ export function DataProvider({ children }) {
     saveJson('wtf_mission_participants', map)
   }
 
+  const updateMission = useCallback((missionId, updates) => {
+    if (!user) return
+    setMissions(prev => {
+      const next = prev.map(m => m.id === missionId ? { ...m, ...updates } : m)
+      saveMissionParticipants(next)
+      return next
+    })
+    bustCache('missions_all')
+    if (user) {
+      supabase.from('missions').update(updates).eq('id', missionId).then(({ error }) => {
+        if (error) console.error('mission update failed:', error)
+      })
+    }
+  }, [user])
+
   const createMission = useCallback((form) => {
     if (!user) return
     if (!checkRateLimit('create_mission', 3)) return
@@ -998,6 +1013,12 @@ export function DataProvider({ children }) {
       leaderId: user.id,
       leaderAvatar: user.avatar_url || user.full_name?.charAt(0).toUpperCase(),
       image: form.image || 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=800',
+      banner: form.banner || '',
+      rules: form.rules || [],
+      joinType: form.joinType || 'open',
+      checklist: [],
+      schedule: [],
+      resources: [],
       support: ['Logistics', 'Funded'],
       requirements: ['Verified Explorer'],
       spots: 5,
@@ -1450,7 +1471,7 @@ export function DataProvider({ children }) {
 
     submitStay, createPost, deletePost, repostPost, likePost, addComment,
     startDiscussion, postToDiscussion,
-    createMission, joinMission, leaveMission, vouchUser,
+    createMission, updateMission, joinMission, leaveMission, vouchUser,
     joinDestination, leaveDestination,
     sendMessage, sendGroupMessage,
     editMessage, deleteMessage, reactToMessage,

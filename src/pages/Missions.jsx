@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useData } from '../context/DataContext.jsx'
 import { Link } from 'react-router-dom'
-import { Mountain, MapPin, Calendar, Users, Plus, ArrowRight, X, Camera, Code, Compass, Globe, MessageSquare, Shield, Heart } from 'lucide-react'
+import { Mountain, MapPin, Calendar, Users, Plus, ArrowRight, X, Camera, Code, Compass, Globe, MessageSquare, Shield, Heart, Eye, Lock, Image as ImageIcon } from 'lucide-react'
 
 const TYPE_ICONS = { 'Creator Trip': <Camera size={16} />, 'Photography': <Camera size={16} />, 'Startup Nomad': <Code size={16} />, 'Cultural Expedition': <Compass size={16} /> }
 const TYPE_COLORS = { 'Creator Trip': 'var(--accent-gold)', 'Photography': 'var(--accent-rose)', 'Startup Nomad': 'var(--accent-teal)', 'Cultural Expedition': 'var(--accent-purple)' }
@@ -11,7 +11,7 @@ export default function Missions() {
   const { user } = useAuth()
   const { missions, createMission, joinMission, leaveMission, vouchUser, allProfiles } = useData()
   const [showCreate, setShowCreate] = useState(false)
-  const [form, setForm] = useState({ title: '', type: '', description: '', countries: '', startDate: '', endDate: '', maxParticipants: 12, joiningDeadline: '' })
+  const [form, setForm] = useState({ title: '', type: '', description: '', countries: '', startDate: '', endDate: '', maxParticipants: 12, joiningDeadline: '', banner: '', rules: '', joinType: 'open' })
   const [sessionVouches, setSessionVouches] = useState([])
 
   const handleCreate = (e) => {
@@ -19,11 +19,12 @@ export default function Missions() {
     createMission({
       ...form,
       countries: form.countries.split(',').map(c => c.trim()).filter(Boolean),
+      rules: form.rules.split('\n').map(r => r.trim()).filter(Boolean),
       leader: user.full_name, leaderId: user.id, leaderAvatar: user.avatar_url || user.full_name?.charAt(0).toUpperCase(),
       image: 'custom'
     })
     setShowCreate(false)
-    setForm({ title: '', type: '', description: '', countries: '', startDate: '', endDate: '', maxParticipants: 12, joiningDeadline: '' })
+    setForm({ title: '', type: '', description: '', countries: '', startDate: '', endDate: '', maxParticipants: 12, joiningDeadline: '', banner: '', rules: '', joinType: 'open' })
   }
 
   const handleJoin = (missionId) => {
@@ -58,11 +59,16 @@ export default function Missions() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               {myMissions.map(m => (
                 <div key={m.id} className="glass-card" style={{ padding: 24, background: 'var(--accent-gold-glow)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
                     <h3 style={{ fontSize: '1.1rem' }}>{m.title}</h3>
-                    <Link to="/messages" className="btn-secondary btn-small">
-                      <MessageSquare size={14} /> Open Group Chat
-                    </Link>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <Link to={`/missions/${m.id}`} className="btn-primary btn-small">
+                        <Eye size={14} /> Mission Hub
+                      </Link>
+                      <Link to={`/missions/${m.id}?tab=chat`} className="btn-secondary btn-small">
+                        <MessageSquare size={14} /> Group Chat
+                      </Link>
+                    </div>
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
                     {m.participants.map(pid => {
@@ -135,12 +141,16 @@ export default function Missions() {
             const canJoin = !hasJoined && !isLeader && !isFull && !isPastDeadline
 
             return (
-              <div key={mission.id} className={`glass-card animate-fade-up animate-delay-${Math.min(i + 1, 4)}`} style={{ padding: 32, display: 'flex', flexDirection: 'column' }}>
+              <Link key={mission.id} to={`/missions/${mission.id}`} className="glass-card animate-fade-up" style={{
+                padding: 32, display: 'flex', flexDirection: 'column', textDecoration: 'none', color: 'inherit',
+                transition: 'all 0.2s'
+              }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
                   <span className="badge" style={{ background: `${TYPE_COLORS[mission.type] || 'var(--accent-gold)'}15`, color: TYPE_COLORS[mission.type] || 'var(--accent-gold)' }}>
                     {TYPE_ICONS[mission.type] || <Compass size={14} />} {mission.type}
                   </span>
-                  {isLeader && <span className="badge badge-gold">Your Mission</span>}
+                  {isLeader && <span className="badge badge-gold">Leading</span>}
+                  {mission.joinType === 'approval' && <span className="badge" style={{ background: 'var(--accent-teal-glow)', color: 'var(--accent-teal)' }}><Lock size={11} /> Approval</span>}
                 </div>
 
                 <h3 style={{ fontSize: '1.2rem', marginBottom: 10 }}>{mission.title}</h3>
@@ -163,31 +173,33 @@ export default function Missions() {
                   )}
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 'auto', borderTop: '1px solid var(--border-subtle)', paddingTop: 16 }}>
                   <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>Led by <strong style={{ color: 'var(--text-secondary)' }}>{mission.leader}</strong></div>
                   {user && !isLeader && (
-                    hasJoined ? (
-                      <div style={{ display: 'flex', gap: 8 }}>
-                        <span className="badge badge-teal">Joined</span>
-                        {mission.leaderId !== user.id && (
-                          <button onClick={() => leaveMission(mission.id)} className="btn-secondary btn-small" style={{ padding: '4px 10px', fontSize: '0.75rem', color: 'var(--accent-rose, #ef4444)', borderColor: 'var(--accent-rose, #ef4444)' }}>
-                            Leave
-                          </button>
-                        )}
-                      </div>
-                    ) : (
-                      <button 
-                        onClick={() => handleJoin(mission.id)} 
-                        className="btn-primary btn-small"
-                        disabled={!canJoin}
-                        style={!canJoin ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
-                      >
-                        {isFull ? 'Mission Full' : isPastDeadline ? 'Deadline Passed' : 'Join Mission'} <ArrowRight size={14} />
-                      </button>
-                    )
+                    <div onClick={e => e.preventDefault()} style={{ display: 'flex', gap: 8 }}>
+                      {hasJoined ? (
+                        <>
+                          <span className="badge badge-teal">Joined</span>
+                          {mission.leaderId !== user.id && (
+                            <button onClick={(e) => { e.preventDefault(); leaveMission(mission.id) }} className="btn-secondary btn-small" style={{ padding: '4px 10px', fontSize: '0.75rem', color: 'var(--accent-rose, #ef4444)', borderColor: 'var(--accent-rose, #ef4444)' }}>
+                              Leave
+                            </button>
+                          )}
+                        </>
+                      ) : (
+                        <button 
+                          onClick={(e) => { e.preventDefault(); handleJoin(mission.id) }} 
+                          className="btn-primary btn-small"
+                          disabled={!canJoin}
+                          style={!canJoin ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
+                        >
+                          {isFull ? 'Mission Full' : isPastDeadline ? 'Deadline Passed' : 'Join Mission'} <ArrowRight size={14} />
+                        </button>
+                      )}
+                    </div>
                   )}
                 </div>
-              </div>
+              </Link>
             )
           })}
         </div>
@@ -196,7 +208,7 @@ export default function Missions() {
       {/* Create Mission Modal */}
       {showCreate && (
         <div className="modal-overlay" onClick={() => setShowCreate(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: 560 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
               <h2 className="modal-title" style={{ marginBottom: 0 }}>Create Explorer Mission</h2>
               <button onClick={() => setShowCreate(false)} style={{ color: 'var(--text-muted)' }}><X size={20} /></button>
@@ -207,25 +219,25 @@ export default function Missions() {
                 <input className="form-input" placeholder="e.g. West Africa Photography Trail" value={form.title} onChange={e => setForm({...form, title: e.target.value})} required />
               </div>
               <div className="form-group">
-                <label className="form-label">Mission Type (Custom)</label>
-                <input className="form-input" placeholder="e.g. Solo Expedition, Beach Cleanup..." value={form.type} onChange={e => setForm({...form, type: e.target.value})} required />
+                <label className="form-label">Mission Type</label>
+                <input className="form-input" placeholder="e.g. Photography, Expedition, Research..." value={form.type} onChange={e => setForm({...form, type: e.target.value})} required />
               </div>
               <div className="form-group">
                 <label className="form-label">Description</label>
                 <textarea className="form-input" placeholder="Describe the mission..." value={form.description} onChange={e => setForm({...form, description: e.target.value})} required />
               </div>
               <div className="form-group">
-                <label className="form-label">Countries (comma separated)</label>
-                <input className="form-input" placeholder="Kenya, Tanzania" value={form.countries} onChange={e => setForm({...form, countries: e.target.value})} />
+                <label className="form-label"><ImageIcon size={14} /> Banner Image URL (optional)</label>
+                <input className="form-input" placeholder="https://images.unsplash.com/..." value={form.banner} onChange={e => setForm({...form, banner: e.target.value})} />
               </div>
               <div className="grid-2">
                 <div className="form-group">
-                  <label className="form-label">Max People</label>
-                  <input className="form-input" type="number" min="1" value={form.maxParticipants} onChange={e => setForm({...form, maxParticipants: parseInt(e.target.value)})} required />
+                  <label className="form-label">Countries (comma separated)</label>
+                  <input className="form-input" placeholder="Kenya, Tanzania" value={form.countries} onChange={e => setForm({...form, countries: e.target.value})} />
                 </div>
                 <div className="form-group">
-                  <label className="form-label">Joining Deadline</label>
-                  <input className="form-input" type="date" value={form.joiningDeadline} onChange={e => setForm({...form, joiningDeadline: e.target.value})} required />
+                  <label className="form-label">Max People</label>
+                  <input className="form-input" type="number" min="1" value={form.maxParticipants} onChange={e => setForm({...form, maxParticipants: parseInt(e.target.value)})} required />
                 </div>
               </div>
               <div className="grid-2">
@@ -237,6 +249,24 @@ export default function Missions() {
                   <label className="form-label">End Date</label>
                   <input className="form-input" type="date" value={form.endDate} onChange={e => setForm({...form, endDate: e.target.value})} />
                 </div>
+              </div>
+              <div className="grid-2">
+                <div className="form-group">
+                  <label className="form-label">Joining Deadline</label>
+                  <input className="form-input" type="date" value={form.joiningDeadline} onChange={e => setForm({...form, joiningDeadline: e.target.value})} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Join Type</label>
+                  <select className="form-input" value={form.joinType} onChange={e => setForm({...form, joinType: e.target.value})}>
+                    <option value="open">Open to Everyone</option>
+                    <option value="approval">Leader Approval Required</option>
+                    <option value="invite">Invite Only</option>
+                  </select>
+                </div>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Rules (one per line, optional)</label>
+                <textarea className="form-input" placeholder="Must have travel insurance&#10;Respect local cultures&#10;Share costs equally" value={form.rules} onChange={e => setForm({...form, rules: e.target.value})} rows={3} />
               </div>
               <button type="submit" className="btn-primary" style={{ width: '100%', justifyContent: 'center' }}>
                 <Mountain size={18} /> Launch Mission <ArrowRight size={16} />

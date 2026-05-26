@@ -10,6 +10,7 @@ import ClaimStay from './pages/ClaimStay.jsx'
 import Auth from './pages/Auth.jsx'
 import Destinations from './pages/Destinations.jsx'
 import Messages from './pages/Messages.jsx'
+import MissionDetail from './pages/MissionDetail.jsx'
 import ExplorerProfile from './pages/ExplorerProfile.jsx'
 import DestinationDiscussion from './pages/DestinationDiscussion.jsx'
 import TestMissions from './pages/TestMissions.jsx'
@@ -35,6 +36,7 @@ export default function App() {
           {/* Protected Routes */}
           <Route path="/profile" element={<ProtectedRoute><ErrorBoundary name="Profile"><Profile /></ErrorBoundary></ProtectedRoute>} />
           <Route path="/missions" element={<ProtectedRoute><ErrorBoundary name="Missions"><Missions /></ErrorBoundary></ProtectedRoute>} />
+          <Route path="/missions/:missionId" element={<ProtectedRoute><ErrorBoundary name="MissionDetail"><MissionDetail /></ErrorBoundary></ProtectedRoute>} />
           <Route path="/feed" element={<ProtectedRoute><ErrorBoundary name="Feed"><Feed /></ErrorBoundary></ProtectedRoute>} />
           <Route path="/fund" element={<ProtectedRoute><ErrorBoundary name="Fund"><Fund /></ErrorBoundary></ProtectedRoute>} />
           <Route path="/claim" element={<ProtectedRoute><ErrorBoundary name="ClaimStay"><ClaimStay /></ErrorBoundary></ProtectedRoute>} />
