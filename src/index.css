@@ -980,8 +980,11 @@ textarea.form-input { resize: vertical; min-height: 100px; }
     padding-top: 48px !important; /* Minimal top spacing for desktop layout */
     padding-bottom: 48px !important;
   }
-  #main-nav {
+  .app-layout:not(.no-sidebar) #main-nav {
     display: none !important;
+  }
+  .app-layout.no-sidebar .page {
+    padding-top: 72px !important;
   }
   .bottom-nav {
     display: none !important;
