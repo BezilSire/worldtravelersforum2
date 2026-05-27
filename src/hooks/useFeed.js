@@ -144,6 +144,9 @@ export function useLikePost() {
       })
       return { previous }
     },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['feed'] })
+    },
     onError: (_err, _vars, context) => {
       if (context?.previous) {
         for (const [key, data] of context.previous) {
