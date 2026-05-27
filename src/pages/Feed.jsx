@@ -2,7 +2,7 @@ import { useData } from '../context/DataContext.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
 import { Link } from 'react-router-dom'
 import { Shield, Mountain, Star, Users, Globe, MapPin, MessageSquare, Heart, Send, Plus, TrendingUp, Award, Clock, Zap, Image, X, Tag, UserPlus, LogIn, Flag, Trash2, Repeat } from 'lucide-react'
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { supabase } from '../lib/supabase.js'
 import { compressImage } from '../lib/compressImage.js'
 
@@ -60,6 +60,74 @@ export default function Feed() {
   const [activeTab, setActiveTab] = useState('notes')
   const [commentText, setCommentText] = useState({})
   const [expandedComments, setExpandedComments] = useState({})
+  const [topContributors, setTopContributors] = useState([])
+
+  useEffect(() => {
+    let cancelled = false
+    async function loadTopContributors() {
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, full_name, avatar_url, username, stays_count, vouches_count, missions_count, countries_count')
+        .not('full_name', 'is', null)
+        .limit(50)
+      if (!profiles || cancelled) return
+
+      const { data: missions } = await supabase
+        .from('missions')
+        .select('creator_id')
+        .not('creator_id', 'is', null)
+
+      const { data: recentEvents } = await supabase
+        .from('feed_events')
+        .select('user_id')
+        .gte('timestamp', new Date(Date.now() - 7 * 86400000).toISOString())
+        .not('user_id', 'is', null)
+
+      if (cancelled) return
+
+      const leaders = new Set((missions || []).map(m => m.creator_id))
+      const active = new Set((recentEvents || []).map(e => e.user_id))
+
+      const scored = profiles.map(p => {
+        let score = 0
+        score += (p.stays_count || 0) * 10
+        score += (p.vouches_count || 0) * 5
+        score += (p.missions_count || 0) * 8
+        score += (p.countries_count || 0) * 3
+        const isLeader = leaders.has(p.id)
+        const isActive = active.has(p.id)
+        if (isLeader) score += 15
+        if (isActive) score += 5
+        const badge = isLeader
+          ? '🚀 Mission Leader'
+          : (p.stays_count || 0) >= 3
+            ? `🏨 ${p.stays_count} Verified Stay${p.stays_count > 1 ? 's' : ''}`
+            : (p.missions_count || 0) >= 1
+              ? `⛰️ ${p.missions_count} Mission${p.missions_count > 1 ? 's' : ''}`
+              : (p.vouches_count || 0) >= 1
+                ? `👍 ${p.vouches_count} Vouch${p.vouches_count > 1 ? 'es' : ''}`
+                : (p.countries_count || 0) >= 3
+                  ? `🌍 ${p.countries_count} Countries`
+                  : isActive
+                    ? '⚡ Trending'
+                    : '🌟 Explorer'
+        return { ...p, score, badge, isLeader, isActive }
+      })
+
+      const sorted = scored.filter(p => p.score > 0).sort((a, b) => b.score - a.score)
+      const top = sorted.slice(0, 20)
+      const seed = Math.floor(Date.now() / 3600000)
+      const picked = []
+      const pool = [...top]
+      for (let i = 0; i < 6 && pool.length > 0; i++) {
+        const idx = (seed + i * 7 + i * i * 13) % pool.length
+        picked.push(pool.splice(idx, 1)[0])
+      }
+      if (!cancelled) setTopContributors(picked)
+    }
+    loadTopContributors()
+    return () => { cancelled = true }
+  }, [])
 
   const toggleComments = (postId) => {
     setExpandedComments(prev => ({ ...prev, [postId]: !prev[postId] }))
@@ -432,13 +500,30 @@ export default function Feed() {
             </Link>
           </div>
 
-          {/* Top Explorers */}
+          {/* Top Contributors */}
           <div className="glass-card" style={{ padding: 24, background: 'transparent' }}>
             <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
               <Award size={18} color="var(--accent-teal)" /> Top Contributors
             </h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Contributors will appear here as they join the network.</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {topContributors.map(c => (
+                <Link key={c.id} to={`/explorer/${c.id}`} style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--gradient-gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem', fontWeight: 700, color: '#000', overflow: 'hidden', flexShrink: 0 }}>
+                    {c.avatar_url?.startsWith('http') || c.avatar_url?.startsWith('data:') ? (
+                      <img src={c.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : (
+                      c.avatar_url || c.full_name?.charAt(0).toUpperCase() || '?'
+                    )}
+                  </div>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.9rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.full_name}</div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{c.badge}</div>
+                  </div>
+                </Link>
+              ))}
+              {topContributors.length === 0 && (
+                <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Contributors will appear here as the network grows.</p>
+              )}
             </div>
           </div>
           
