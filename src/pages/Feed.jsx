@@ -3,6 +3,8 @@ import { useAuth } from '../context/AuthContext.jsx'
 import { Link } from 'react-router-dom'
 import { Shield, Mountain, Star, Users, Globe, MapPin, MessageSquare, Heart, Send, Plus, TrendingUp, Award, Clock, Zap, Image, X, Tag, UserPlus, LogIn, Flag, Trash2, Repeat } from 'lucide-react'
 import { useState, useMemo } from 'react'
+import { supabase } from '../lib/supabase.js'
+import { compressImage } from '../lib/compressImage.js'
 
 const FEED_ICONS = {
   verified_stay: <Shield size={16} />,
@@ -53,6 +55,7 @@ export default function Feed() {
   const { user } = useAuth()
   const [postText, setPostText] = useState('')
   const [postImage, setPostImage] = useState('')
+  const [uploadingImage, setUploadingImage] = useState(false)
   const [postFlair, setPostFlair] = useState('note')
   const [activeTab, setActiveTab] = useState('notes')
   const [commentText, setCommentText] = useState({})
@@ -92,14 +95,21 @@ export default function Feed() {
     setCommentText({ ...commentText, [postId]: '' })
   }
 
-  const handleImageUpload = (e) => {
+  const handleImageUpload = async (e) => {
     const file = e.target.files[0]
-    if (file) {
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        setPostImage(reader.result)
-      }
-      reader.readAsDataURL(file)
+    if (!file || !user) return
+    setUploadingImage(true)
+    try {
+      const compressed = await compressImage(file)
+      const path = `${user.id}/${Date.now()}.webp`
+      const { error: uploadError } = await supabase.storage.from('post-images').upload(path, compressed, { contentType: 'image/webp' })
+      if (uploadError) throw uploadError
+      const { data: { publicUrl } } = supabase.storage.from('post-images').getPublicUrl(path)
+      setPostImage(publicUrl)
+    } catch (err) {
+      console.error('Image upload failed:', err)
+    } finally {
+      setUploadingImage(false)
     }
   }
 
@@ -213,18 +223,19 @@ export default function Feed() {
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 12, borderTop: '1px solid var(--border-subtle)' }}>
                   <div style={{ display: 'flex', gap: 12 }}>
-                    <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.9rem', color: postImage ? 'var(--accent-teal)' : 'var(--text-muted)' }}>
-                      <Image size={18} /> {postImage ? 'Image Selected' : 'Upload Image'}
+                    <label style={{ cursor: uploadingImage ? 'wait' : 'pointer', display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.9rem', color: postImage ? 'var(--accent-teal)' : 'var(--text-muted)' }}>
+                      <Image size={18} /> {uploadingImage ? 'Uploading...' : postImage ? 'Image Selected' : 'Upload Image'}
                       <input 
                         type="file" 
                         accept="image/*" 
                         onChange={handleImageUpload} 
                         style={{ display: 'none' }}
+                        disabled={uploadingImage}
                       />
                     </label>
                   </div>
-                  <button type="submit" className="btn-primary btn-small" style={{ borderRadius: 100, padding: '8px 20px' }}>
-                    Post
+                  <button type="submit" className="btn-primary btn-small" style={{ borderRadius: 100, padding: '8px 20px' }} disabled={uploadingImage}>
+                    {uploadingImage ? 'Uploading...' : 'Post'}
                   </button>
                 </div>
               </form>

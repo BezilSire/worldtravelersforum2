@@ -158,6 +158,11 @@ export function AuthProvider({ children }) {
   }
 
   const updateUser = async (updates) => {
+    if (updates.full_name && user?.avatar_url && 
+        !user.avatar_url.startsWith('http') && 
+        !user.avatar_url.startsWith('data:')) {
+      updates.avatar_url = updates.full_name.charAt(0).toUpperCase()
+    }
     const { error } = await supabase
       .from('profiles')
       .update(updates)

@@ -3,6 +3,8 @@ import { useData } from '../context/DataContext.jsx'
 import { Link, Navigate } from 'react-router-dom'
 import { MapPin, Globe, Shield, Star, Calendar, ArrowRight, History, X, Plus, Camera, AlertTriangle, Heart, Instagram, Youtube, Music2, Edit3, LifeBuoy, FileText, Bell, Mountain, MessageSquare, ExternalLink, Trophy, Bookmark, Trash2 } from 'lucide-react'
 import { useState, useRef } from 'react'
+import { supabase } from '../lib/supabase.js'
+import { compressImage } from '../lib/compressImage.js'
 import { calcReputation } from '../lib/reputation.js'
 
 export default function Profile() {
@@ -26,14 +28,22 @@ export default function Profile() {
 
   // if (!user) return <Navigate to="/auth" /> -- handled by ProtectedRoute
 
-  const handleFileChange = (e) => {
+  const handleFileChange = async (e) => {
     const file = e.target.files[0]
-    if (file) {
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        updateUser({ profileImage: reader.result })
-      }
-      reader.readAsDataURL(file)
+    if (!file) return
+    setSaving(true)
+    try {
+      const compressed = await compressImage(file)
+      const path = `${user.id}/${Date.now()}.webp`
+      const { error: uploadError } = await supabase.storage.from('avatars').upload(path, compressed, { contentType: 'image/webp' })
+      if (uploadError) throw uploadError
+      const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path)
+      await updateUser({ avatar_url: publicUrl })
+    } catch (err) {
+      console.error('Avatar upload failed:', err)
+    } finally {
+      setSaving(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
     }
   }
 
