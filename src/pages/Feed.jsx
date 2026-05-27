@@ -254,8 +254,12 @@ export default function Feed() {
                 <div style={{ display: 'flex', gap: 16 }}>
                   {/* Author Info */}
                   <Link to={`/explorer/${getExplorerId(item.userId)}`} style={{ flexShrink: 0 }}>
-                    <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem', fontWeight: 700, color: 'var(--accent-gold)' }}>
-                      {item.avatar}
+                    <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem', fontWeight: 700, color: 'var(--accent-gold)', overflow: 'hidden' }}>
+                      {item.avatar?.startsWith('http') || item.avatar?.startsWith('data:') ? (
+                        <img src={item.avatar} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      ) : (
+                        item.avatar || (item.user?.charAt(0).toUpperCase()) || '?'
+                      )}
                     </div>
                   </Link>
 
@@ -338,8 +342,12 @@ export default function Feed() {
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: user ? 24 : 0 }}>
                           {item.comments?.map(c => (
                             <div key={c.id} style={{ display: 'flex', gap: 12 }}>
-                              <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-primary)', flexShrink: 0 }}>
-                                {c.avatar || c.user.substring(0, 2).toUpperCase()}
+                              <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-primary)', flexShrink: 0, overflow: 'hidden' }}>
+                                {c.avatar?.startsWith('http') || c.avatar?.startsWith('data:') ? (
+                                  <img src={c.avatar} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                ) : (
+                                  c.avatar || c.user?.charAt(0).toUpperCase() || '?'
+                                )}
                               </div>
                               <div style={{ flex: 1, background: 'var(--bg-elevated)', padding: '12px 16px', borderRadius: '0 16px 16px 16px', border: '1px solid var(--border-subtle)' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
