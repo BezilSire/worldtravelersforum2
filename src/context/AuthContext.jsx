@@ -45,6 +45,9 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     let cancelled = false
+    const timeout = setTimeout(() => {
+      if (!cancelled) setLoading(false)
+    }, 3000)
 
     supabase.auth.getSession()
       .then(async ({ data: { session } }) => {
@@ -57,12 +60,13 @@ export function AuthProvider({ children }) {
           console.error('hydrateUser failed:', err)
         }
         if (!cancelled) {
+          clearTimeout(timeout)
           setLoading(false)
         }
       })
       .catch(err => {
         console.error('getSession failed:', err)
-        if (!cancelled) setLoading(false)
+        if (!cancelled) { clearTimeout(timeout); setLoading(false) }
       })
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -83,12 +87,13 @@ export function AuthProvider({ children }) {
         } catch (err) {
           console.error('auth state change handler failed:', err)
         }
-        if (!cancelled) setLoading(false)
+        if (!cancelled) { clearTimeout(timeout); setLoading(false) }
       }
     )
 
     return () => {
       cancelled = true
+      clearTimeout(timeout)
       subscription.unsubscribe()
     }
   }, [hydrateUser])

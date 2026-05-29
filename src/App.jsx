@@ -25,7 +25,21 @@ export default function App() {
   const { user, loading } = useAuth()
 
   if (loading) {
-    return <div style={{ background: '#000', minHeight: '100vh' }} />
+    return (
+      <div style={{
+        background: 'var(--bg-card)',
+        minHeight: '100vh',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        flexDirection: 'column', gap: 20
+      }}>
+        <div className="spin" style={{
+          width: 48, height: 48, borderRadius: '50%',
+          border: '3px solid var(--border-subtle)',
+          borderTopColor: 'var(--accent-gold)'
+        }} />
+        <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Loading...</span>
+      </div>
+    )
   }
 
   return (
