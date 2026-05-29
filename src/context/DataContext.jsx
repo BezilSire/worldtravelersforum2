@@ -63,6 +63,8 @@ export function DataProvider({ children }) {
   const [feedEvents, setFeedEvents] = useState([])
   const [allProfiles, setAllProfiles] = useState([])
   const [dmHistory, setDmHistory] = useState([])
+  const [lastReadTimestamps, setLastReadTimestamps] = useState(() => loadJson('wtf_last_read', {}))
+  const [onlineUsers, setOnlineUsers] = useState(() => new Set())
   const [followedDestinations, setFollowedDestinations] = useState([])
   const [destinationMembers, setDestinationMembers] = useState({})
   const [testMissionApplications, setTestMissionApplications] = useState([])
@@ -126,6 +128,10 @@ export function DataProvider({ children }) {
     })
     return saved
   })
+
+  useEffect(() => {
+    saveJson('wtf_destination_resources', destinationResources)
+  }, [destinationResources])
 
   const isAdmin = user?.email === ADMIN_EMAIL
 
@@ -266,6 +272,7 @@ export function DataProvider({ children }) {
           to: user.id,
           toName: user.full_name,
           text: payload.new.text,
+          imageUrl: payload.new.image_url,
           timestamp: payload.new.timestamp,
           reactions: payload.new.reactions || {},
           edited: payload.new.edited || false
@@ -292,7 +299,7 @@ export function DataProvider({ children }) {
     channel.on('postgres_changes',
       { event: 'UPDATE', schema: 'public', table: 'direct_messages', filter: `or=(sender_id.eq.${user.id},receiver_id.eq.${user.id})` },
       (payload) => {
-        setMessages(prev => prev.map(m => m.id === payload.new.id ? { ...m, text: payload.new.text, edited: payload.new.edited, reactions: payload.new.reactions || {} } : m))
+        setMessages(prev => prev.map(m => m.id === payload.new.id ? { ...m, text: payload.new.text, edited: payload.new.edited, reactions: payload.new.reactions || {}, imageUrl: payload.new.image_url || m.imageUrl } : m))
         setDmHistory(prev => prev.map(m => m.id === payload.new.id ? { ...m, ...payload.new } : m))
       }
     )
@@ -308,6 +315,44 @@ export function DataProvider({ children }) {
     return () => { supabase.removeChannel(channel) }
   }, [user])
 
+  // Presence tracking
+  const presenceRef = useRef(null)
+  useEffect(() => {
+    if (!user) { setOnlineUsers(new Set()); return }
+    const presenceChannel = supabase.channel('chat_presence', {
+      config: { presence: { key: user.id } }
+    })
+    presenceChannel.on('presence', { event: 'sync' }, () => {
+      const state = presenceChannel.presenceState()
+      const keys = new Set(Object.keys(state))
+      setOnlineUsers(prev => {
+        if (prev.size === keys.size && [...prev].every(k => keys.has(k))) return prev
+        return keys
+      })
+    })
+    presenceChannel.subscribe((status) => {
+      if (status === 'SUBSCRIBED') {
+        presenceChannel.track({ online_at: new Date().toISOString() }).then(() => {}, () => {})
+      }
+    })
+    presenceRef.current = presenceChannel
+    return () => { supabase.removeChannel(presenceChannel) }
+  }, [user])
+
+  useEffect(() => {
+    if (!user) return
+    const updateLastSeen = () => {
+      supabase.from('profiles').update({ last_seen: new Date().toISOString() }).eq('id', user.id)
+        .then(() => {}, () => {})
+    }
+    updateLastSeen()
+    window.addEventListener('beforeunload', updateLastSeen)
+    return () => {
+      updateLastSeen()
+      window.removeEventListener('beforeunload', updateLastSeen)
+    }
+  }, [user])
+
   const subscribeToGroupChat = useCallback((chatId) => {
     if (!chatId || groupChatSubscriptions.current[chatId]) return
     if (!user) return
@@ -319,6 +364,7 @@ export function DataProvider({ children }) {
         from: payload.from || 'Explorer',
         fromId: payload.fromId,
         text: payload.text,
+        imageUrl: payload.imageUrl,
         timestamp: payload.timestamp,
         reactions: payload.reactions || {},
         edited: payload.edited || false
@@ -767,26 +813,34 @@ export function DataProvider({ children }) {
     })
   }, [sendNotification])
 
-  const sendMessage = useCallback(({ from, to, text }) => {
+  const markConversationRead = useCallback((convKey) => {
+    setLastReadTimestamps(prev => {
+      const next = { ...prev, [convKey]: Date.now() }
+      saveJson('wtf_last_read', next)
+      return next
+    })
+  }, [])
+
+  const sendMessage = useCallback(({ from, to, text, imageUrl }) => {
     if (!checkRateLimit(`dm_${from?.id || user?.id}`, 20)) return
     const msgId = crypto.randomUUID()
-    const msg = { id: msgId, from: from?.name || from || 'Explorer', fromId: from?.id || user?.id, to, text, timestamp: new Date().toISOString() }
+    const msg = { id: msgId, from: from?.name || from || 'Explorer', fromId: from?.id || user?.id, to, text, imageUrl, timestamp: new Date().toISOString() }
     setMessages(prev => [...prev, msg])
     if (user && from?.id) {
-      supabase.from('direct_messages').insert({ id: msgId, sender_id: from.id, sender_name: from.name || user.full_name, receiver_id: to, text }).catch(err => console.error('direct_messages insert failed:', err))
+      supabase.from('direct_messages').insert({ id: msgId, sender_id: from.id, sender_name: from.name || user.full_name, receiver_id: to, text, image_url: imageUrl }).then(() => {}, err => console.error('direct_messages insert failed:', err))
     }
     if (to !== user?.id) {
       sendNotification(`New message from ${from?.name || 'Explorer'}`, { body: text?.slice(0, 100), tag: 'message' })
     }
   }, [user, sendNotification])
 
-  const sendGroupMessage = useCallback((chatId, { from, text }) => {
+  const sendGroupMessage = useCallback((chatId, { from, text, imageUrl }) => {
     if (!checkRateLimit(`group_msg_${chatId}`, 20)) return
     const msgId = crypto.randomUUID()
-    const msg = { id: msgId, from: from?.name || from || 'Explorer', fromId: from?.id || user?.id, text, timestamp: new Date().toISOString() }
+    const msg = { id: msgId, from: from?.name || from || 'Explorer', fromId: from?.id || user?.id, text, imageUrl, timestamp: new Date().toISOString() }
     setGroupChats(prev => prev.map(gc => gc.id !== chatId ? gc : { ...gc, messages: [...(gc.messages || []), msg] }))
     if (user && from?.id) {
-      supabase.from('group_chat_messages').insert({ id: msgId, group_chat_id: chatId, user_id: from.id, user_name: from.name || 'Explorer', text }).catch(err => console.error('group_chat_messages insert failed:', err))
+      supabase.from('group_chat_messages').insert({ id: msgId, group_chat_id: chatId, user_id: from.id, user_name: from.name || 'Explorer', text, image_url: imageUrl }).then(() => {}, err => console.error('group_chat_messages insert failed:', err))
     }
     const ch = groupChatSubscriptions.current[chatId]
     if (ch) ch.send({ type: 'broadcast', event: 'new_message', payload: msg })
@@ -838,7 +892,7 @@ export function DataProvider({ children }) {
   const postSystemBroadcast = useCallback(({ title, body }) => {
     addFeedEvent({ type: 'system_broadcast', user: 'Network HQ', userAvatar: 'HQ', text: `**${title}** — ${body}` })
     setNotifications(prev => [{ id: genId(), type: 'system_broadcast', title, body, link: '/feed', read: false, timestamp: new Date().toISOString() }, ...prev])
-    supabase.from('posts').insert({ text: `📢 ${title}: ${body}`, flair: 'system_update' }).catch(() => {})
+    supabase.from('posts').insert({ text: `📢 ${title}: ${body}`, flair: 'system_update' }).then(() => {}, () => {})
   }, [])
 
   const addTestMission = useCallback((mission) => {
@@ -894,7 +948,8 @@ export function DataProvider({ children }) {
     importPastHistory, reportUser,
     addFeedEvent, addNotification, markNotifRead, clearNotifs,
     unreadCount, loadMoreFeed: feedQuery.fetchNextPage,
-    isAdmin, updateFundData, postSystemBroadcast, addTestMission, removeTestMission
+    isAdmin, updateFundData, postSystemBroadcast, addTestMission, removeTestMission,
+    markConversationRead, lastReadTimestamps, onlineUsers
   }
 
   return (

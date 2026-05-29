@@ -2,7 +2,9 @@ import { useData } from '../context/DataContext.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react'
 import { Navigate } from 'react-router-dom'
-import { Send, Search, User, MessageSquare, Edit3, Trash2, Smile, X, Check, ChevronLeft, Users, Bookmark, Share2, MessageCircle } from 'lucide-react'
+import { Send, Search, User, MessageSquare, Edit3, Trash2, Smile, X, Check, ChevronLeft, Users, Bookmark, Share2, MessageCircle, Image } from 'lucide-react'
+import { supabase } from '../lib/supabase.js'
+import { compressImage } from '../lib/compressImage.js'
 
 const REACTIONS = ['❤️', '👍', '😂', '😮', '😢', '🙏']
 
@@ -57,7 +59,7 @@ function Avatar({ src, name, size = 36, style }) {
 
 export default function Messages() {
   const { user } = useAuth()
-  const { messages, sendMessage, groupChats, sendGroupMessage, allProfiles, dmHistory, editMessage, deleteMessage, reactToMessage, saveBookmark, shareToDiscussion, destinations } = useData()
+  const { messages, sendMessage, groupChats, sendGroupMessage, allProfiles, dmHistory, editMessage, deleteMessage, reactToMessage, saveBookmark, shareToDiscussion, destinations, lastReadTimestamps, markConversationRead, onlineUsers } = useData()
 
   const [activeChat, setActiveChat] = useState(null)
   const [msgText, setMsgText] = useState('')
@@ -73,9 +75,13 @@ export default function Messages() {
   const [chatSearch, setChatSearch] = useState('')
   const [shareTarget, setShareTarget] = useState(null)
   const [showShareModal, setShowShareModal] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const [pendingImage, setPendingImage] = useState(null)
+  const [lightboxImage, setLightboxImage] = useState(null)
   const listRef = useRef(null)
   const msgEndRef = useRef(null)
   const editRef = useRef(null)
+  const fileInputRef = useRef(null)
 
   if (!user) return <Navigate to="/auth" />
 
@@ -99,6 +105,7 @@ export default function Messages() {
           fromId: m.sender_id,
           to: m.receiver_id,
           text: m.text,
+          imageUrl: m.image_url,
           timestamp: m.timestamp,
           reactions: m.reactions || {},
           edited: m.edited || false
@@ -209,23 +216,56 @@ export default function Messages() {
     if (editingId && editRef.current) editRef.current.focus()
   }, [editingId])
 
+  useEffect(() => {
+    if (activeChat) {
+      const convKey = `${activeChat.type}_${activeChat.id}`
+      markConversationRead(convKey)
+    }
+  }, [activeChat, currentMessages.length, markConversationRead])
+
   const handleSend = useCallback((e) => {
     e.preventDefault()
-    if (!msgText.trim() || !activeChat) return
+    if ((!msgText.trim() && !pendingImage) || !activeChat) return
+    const payload = { text: msgText }
+    if (pendingImage) payload.imageUrl = pendingImage
     if (activeChat.type === 'dm') {
       sendMessage({
         from: { id: user.id, name: user.full_name },
         to: activeChat.id,
-        text: msgText
+        ...payload
       })
     } else {
       sendGroupMessage(activeChat.id, {
         from: user.full_name,
-        text: msgText
+        fromId: user.id,
+        ...payload
       })
     }
     setMsgText('')
-  }, [msgText, activeChat, user, sendMessage, sendGroupMessage])
+    setPendingImage(null)
+  }, [msgText, pendingImage, activeChat, user, sendMessage, sendGroupMessage])
+
+  const handleImageUpload = useCallback(async (e) => {
+    const file = e.target.files?.[0]
+    if (!file || !activeChat) return
+    setUploading(true)
+    try {
+      const compressed = await compressImage(file)
+      const fileName = `${user.id}_${Date.now()}.webp`
+      const { error } = await supabase.storage.from('post-images').upload(fileName, compressed, {
+        contentType: 'image/webp',
+        upsert: false
+      })
+      if (error) throw error
+      const { data: { publicUrl } } = supabase.storage.from('post-images').getPublicUrl(fileName)
+      setPendingImage(publicUrl)
+    } catch (err) {
+      console.error('Image upload failed:', err)
+    } finally {
+      setUploading(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }, [activeChat, user])
 
   const handleEdit = useCallback((msgId, currentText) => {
     setEditingId(msgId)
@@ -292,7 +332,9 @@ export default function Messages() {
     setActiveChat({ type: convo.type, id: convo.id })
     setShowMobileList(false)
     setSearch('')
-  }, [])
+    const convKey = `${convo.type}_${convo.id}`
+    markConversationRead(convKey)
+  }, [markConversationRead])
 
   const hasReacted = (reactions, emoji) => {
     return reactions?.[emoji]?.includes(user.id) || false
@@ -447,7 +489,10 @@ export default function Messages() {
                       className={`conversation-item ${isActive ? 'active' : ''}`}
                     >
                       {convo.type === 'dm' ? (
-                        <Avatar src={convo.avatar} name={convo.name} size={40} />
+                        <div className="avatar-wrapper">
+                          <Avatar src={convo.avatar} name={convo.name} size={40} />
+                          <div className={onlineUsers.has(convo.id) ? 'online-dot' : 'offline-dot'} />
+                        </div>
                       ) : (
                         <div style={{
                           width: 40, height: 40, borderRadius: 10,
@@ -460,9 +505,19 @@ export default function Messages() {
                       <div className="conversation-info">
                         <div className="conversation-top">
                           <span className="conversation-name">{convo.name}</span>
-                          {convo.lastTime && (
-                            <span className="conversation-time">{formatTime(convo.lastTime)}</span>
-                          )}
+                          {(() => {
+                            const convKey = `${convo.type}_${convo.id}`
+                            const lastRead = lastReadTimestamps[convKey]
+                            const unreadCount = convo.messages?.filter(m => !lastRead || new Date(m.timestamp || 0) > new Date(lastRead)).length || 0
+                            return (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                {unreadCount > 0 && <span className="unread-badge">{unreadCount}</span>}
+                                {convo.lastTime && (
+                                  <span className="conversation-time">{formatTime(convo.lastTime)}</span>
+                                )}
+                              </div>
+                            )
+                          })()}
                         </div>
                         <div className="conversation-preview">
                           {convo.type === 'group' && (
@@ -503,10 +558,12 @@ export default function Messages() {
                   <Avatar src={currentAvatar} name={currentTitle} size={36} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div className="messages-chat-title">{currentTitle}</div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 6 }}>
                       {activeChat.type === 'group'
                         ? `${currentParticipants || 0} members`
-                        : 'Direct Message'
+                        : onlineUsers.has(activeChat.id)
+                          ? <><span style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e', display: 'inline-block' }} /> Online</>
+                          : 'Direct Message'
                       }
                     </div>
                   </div>
@@ -530,7 +587,7 @@ export default function Messages() {
                     </div>
                   ) : (
                     messageGroups.map((group, gi) => (
-                      <div key={gi}>
+                      <div key={gi} style={{ display: 'flex', flexDirection: 'column' }}>
                         <div className="messages-date-separator">
                           <span>{group.date}</span>
                         </div>
@@ -573,7 +630,15 @@ export default function Messages() {
                                     </div>
                                   ) : (
                                     <div className="message-text">
-                                      {msg.text}
+                                      {msg.imageUrl && (
+                                        <img
+                                          src={msg.imageUrl}
+                                          alt=""
+                                          className="message-image"
+                                          onClick={() => setLightboxImage(msg.imageUrl)}
+                                        />
+                                      )}
+                                      {msg.text && <span>{msg.text}</span>}
                                       {msg.edited && <span className="message-edited"> (edited)</span>}
                                     </div>
                                   )}
@@ -658,13 +723,39 @@ export default function Messages() {
 
                 {/* Input */}
                 <form className="messages-input-area" onSubmit={handleSend}>
+                  {pendingImage && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px 0', background: 'var(--bg-card)' }}>
+                      <div style={{ position: 'relative', display: 'inline-flex' }}>
+                        <img src={pendingImage} alt="" style={{ width: 80, height: 60, objectFit: 'cover', borderRadius: 8 }} />
+                        <button type="button" onClick={() => setPendingImage(null)} style={{ position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: '50%', background: '#ef4444', color: '#fff', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', padding: 0, fontSize: 12, lineHeight: 1 }}>
+                          <X size={12} />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    ref={fileInputRef}
+                    style={{ display: 'none' }}
+                    onChange={handleImageUpload}
+                  />
+                  <button
+                    type="button"
+                    className="btn-primary"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploading}
+                    style={{ padding: '14px 16px', background: 'none', backgroundImage: 'none', backgroundColor: 'transparent', color: 'var(--accent-gold)', border: 'none', opacity: uploading ? 0.4 : 1 }}
+                  >
+                    {uploading ? <span style={{ fontSize: 16, lineHeight: 1 }}>⏳</span> : <Image size={20} />}
+                  </button>
                   <input
                     className="form-input messages-input"
                     placeholder={activeChat.type === 'dm' ? `Message ${currentTitle}...` : 'Message the group...'}
                     value={msgText}
                     onChange={e => setMsgText(e.target.value)}
                   />
-                  <button type="submit" className="btn-primary" disabled={!msgText.trim()} style={{ padding: '14px 18px', opacity: msgText.trim() ? 1 : 0.4 }}>
+                  <button type="submit" className="btn-primary" disabled={!msgText.trim() && !pendingImage} style={{ padding: '14px 18px', opacity: (msgText.trim() || pendingImage) ? 1 : 0.4 }}>
                     <Send size={18} />
                   </button>
                 </form>
@@ -673,6 +764,12 @@ export default function Messages() {
           </div>
         </div>
       </div>
+
+      {lightboxImage && (
+        <div className="image-lightbox" onClick={() => setLightboxImage(null)}>
+          <img src={lightboxImage} alt="" />
+        </div>
+      )}
     </div>
   )
 }

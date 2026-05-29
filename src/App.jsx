@@ -22,7 +22,12 @@ import ProtectedRoute from './components/ProtectedRoute.jsx'
 import { ErrorBoundary } from './components/ErrorBoundary.jsx'
 
 export default function App() {
-  const { user } = useAuth()
+  const { user, loading } = useAuth()
+
+  if (loading) {
+    return <div style={{ background: '#000', minHeight: '100vh' }} />
+  }
+
   return (
     <div className={`app-layout${!user ? ' no-sidebar' : ''}`}>
       <Navbar />

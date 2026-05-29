@@ -1,141 +1,155 @@
-import { useEffect, useRef } from 'react'
+import { useState, useCallback } from 'react'
+import { Search } from 'lucide-react'
+import FlightSearchForm from '../components/FlightSearchForm.jsx'
+import FlightResults from '../components/FlightResults.jsx'
+import PopularDestinations from '../components/PopularDestinations.jsx'
+import { searchCheapTickets } from '../lib/travelpayouts.js'
+import { getAirport } from '../data/airports.js'
 
 export default function Bookings() {
-  const flightWidgetRef = useRef(null)
-  const destinationsWidgetRef = useRef(null)
+  const [flights, setFlights] = useState(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [searchParams, setSearchParams] = useState(null)
 
-  useEffect(() => {
-    // Flight Search Widget
-    if (flightWidgetRef.current && flightWidgetRef.current.children.length === 0) {
-      const script = document.createElement('script')
-      // Note: show_hotels is set to false here as requested
-      script.src = "https://tpwdgt.com/content?currency=usd&campaign_id=100&promo_id=7879&plain=true&no_labels=&border_radius=0&color_focused=%23E5F694ff&special=%23C4C4C4&secondary=%23FFFFFF&light=%23FFFFFF&dark=%23262626&color_icons=%23E8F28Cff&color_button=%23E2CA3Dff&primary_override=%23E2CA39ff&searchUrl=www.aviasales.com%2Fsearch&locale=en&powered_by=true&show_hotels=false&shmarker=728203&trs=528643"
-      script.async = true
-      script.charset = "utf-8"
-      flightWidgetRef.current.appendChild(script)
-    }
-
-    // Popular Destinations Widget
-    if (destinationsWidgetRef.current && destinationsWidgetRef.current.children.length === 0) {
-      const script2 = document.createElement('script')
-      script2.src = "https://tpwdgt.com/content?currency=usd&campaign_id=100&promo_id=4044&primary=%23B4830Dff&powered_by=true&limit=7&locale=en&target_host=www.aviasales.com%2Fsearch&shmarker=728203&trs=528643"
-      script2.async = true
-      script2.charset = "utf-8"
-      destinationsWidgetRef.current.appendChild(script2)
+  const doSearch = useCallback(async (params) => {
+    setLoading(true)
+    setError('')
+    setSearchParams(params)
+    try {
+      const results = await searchCheapTickets(params)
+      setFlights(results)
+      if (results.length === 0) {
+        setError('No flights found for this route. Try different dates.')
+      }
+    } catch (err) {
+      setError(err.message || 'Search failed. Please try again.')
+      setFlights([])
+    } finally {
+      setLoading(false)
     }
   }, [])
 
+  const handleSelectDestination = (code, city) => {
+    doSearch({ origin: 'JFK', destination: code })
+  }
+
+  const showSearch = !flights || flights.length === 0 || error
+
   return (
-    <div style={{ 
-      minHeight: '100vh', 
-      paddingBottom: '80px',
-      background: '#0a0b0f'
+    <div style={{
+      minHeight: '100vh',
+      paddingBottom: 80,
+      background: 'var(--bg-main)',
     }}>
-      {/* Hero Section with Beautiful Holiday Image */}
+      {/* Hero */}
       <div style={{
         position: 'relative',
         width: '100%',
-        height: '65vh',
-        minHeight: '450px',
+        height: '55vh',
+        minHeight: 400,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        // High quality Unsplash tropical beach sunset image
         backgroundImage: 'url("https://images.unsplash.com/photo-1499793983690-e29da59ef1c2?q=80&w=2070&auto=format&fit=crop")',
         backgroundSize: 'cover',
         backgroundPosition: 'center',
-        backgroundRepeat: 'no-repeat',
       }}>
         <div style={{
-          position: 'absolute',
-          top: 0, left: 0, right: 0, bottom: 0,
-          background: 'linear-gradient(to bottom, rgba(10,11,15,0.4) 0%, rgba(10,11,15,0.7) 70%, rgba(10,11,15,1) 100%)'
-        }}></div>
-        
-        <div style={{ position: 'relative', zIndex: 1, textAlign: 'center', padding: '0 20px', transform: 'translateY(20px)' }}>
-          <span style={{ 
-            display: 'inline-block', 
-            padding: '6px 16px', 
-            background: 'rgba(226, 202, 61, 0.1)', 
-            color: '#E2CA3D', 
-            borderRadius: '30px',
-            fontSize: '0.85rem',
-            fontWeight: 700,
-            marginBottom: '1.5rem',
-            letterSpacing: '1.5px',
-            textTransform: 'uppercase',
-            border: '1px solid rgba(226, 202, 61, 0.25)',
-            backdropFilter: 'blur(4px)'
+          position: 'absolute', inset: 0,
+          background: 'linear-gradient(to bottom, rgba(10,11,15,0.4) 0%, rgba(10,11,15,0.7) 70%, rgba(10,11,15,1) 100%)',
+        }} />
+        <div style={{ position: 'relative', zIndex: 1, textAlign: 'center', padding: '0 20px', transform: 'translateY(-20px)' }}>
+          <span style={{
+            display: 'inline-block', padding: '6px 16px',
+            background: 'rgba(249,115,22,0.1)', color: 'var(--accent-gold)',
+            borderRadius: 30, fontSize: '0.85rem', fontWeight: 700,
+            marginBottom: '1.5rem', letterSpacing: '1.5px', textTransform: 'uppercase',
+            border: '1px solid rgba(249,115,22,0.25)', backdropFilter: 'blur(4px)',
           }}>
             Explore the World
           </span>
-          <h1 style={{ 
-            fontSize: 'clamp(3rem, 6vw, 5.5rem)', 
-            fontWeight: 900, 
-            textTransform: 'uppercase', 
-            marginBottom: '1rem', 
-            color: '#ffffff',
-            letterSpacing: '-1.5px',
-            lineHeight: 1.05
+          <h1 style={{
+            fontSize: 'clamp(2.5rem, 5vw, 4.5rem)', fontWeight: 900,
+            textTransform: 'uppercase', marginBottom: '0.75rem',
+            letterSpacing: '-1.5px', lineHeight: 1.05,
           }}>
-            Book Your Next <br/>
-            <span style={{ 
-              background: 'linear-gradient(to right, #E2CA3D, #FFF)', 
-              WebkitBackgroundClip: 'text', 
-              color: 'transparent' 
-            }}>
-              Flight
-            </span>
+            {searchParams ? (
+              <>
+                <span style={{ color: 'var(--accent-gold)' }}>{getAirport(searchParams.origin)?.city || searchParams.origin}</span>
+                <span style={{ color: 'var(--text-muted)', margin: '0 16px', fontSize: '0.7em' }}>→</span>
+                <span style={{ color: '#fff' }}>{getAirport(searchParams.destination)?.city || searchParams.destination}</span>
+              </>
+            ) : (
+              <>
+                Book Your Next <br />
+                <span style={{ background: 'linear-gradient(to right, var(--accent-gold), #fff)', WebkitBackgroundClip: 'text', color: 'transparent' }}>Flight</span>
+              </>
+            )}
           </h1>
-          <p style={{ color: 'rgba(255,255,255,0.85)', fontSize: '1.2rem', maxWidth: '600px', margin: '0 auto', fontWeight: 400, textShadow: '0 2px 4px rgba(0,0,0,0.5)' }}>
-            Find the best flight deals for your upcoming missions. Discover untouched beaches and bustling cityscapes.
+          <p style={{ color: 'rgba(255,255,255,0.85)', fontSize: '1.1rem', maxWidth: 500, margin: '0 auto', fontWeight: 400 }}>
+            {searchParams ? `${flights?.length || 0} flights found` : 'Find the best flight deals for your upcoming missions.'}
           </p>
         </div>
       </div>
 
-      {/* Widgets Container */}
-      <div style={{ 
-        maxWidth: '1200px', 
-        margin: '-80px auto 0', 
-        padding: '0 20px',
-        position: 'relative',
-        zIndex: 10
-      }}>
-        {/* Flight Search Widget */}
-        <div style={{ 
-          background: 'var(--bg-card, #111)', 
-          borderRadius: '16px', 
-          border: '1px solid rgba(255,255,255,0.1)', 
-          padding: '24px', 
+      {/* Content */}
+      <div style={{ maxWidth: 900, margin: '-60px auto 0', padding: '0 20px', position: 'relative', zIndex: 10 }}>
+        {/* Search form */}
+        <div style={{
+          background: 'var(--bg-card)', borderRadius: 16,
+          border: '1px solid var(--border-subtle)', padding: 28,
           boxShadow: '0 25px 50px -12px rgba(0,0,0,0.7)',
-          marginBottom: '60px',
-          backdropFilter: 'blur(10px)'
+          marginBottom: 32,
         }}>
-          <div ref={flightWidgetRef} style={{ width: '100%', minHeight: '150px' }}></div>
+          <FlightSearchForm onSearch={doSearch} loading={loading} />
         </div>
 
-        {/* Popular Destinations Title */}
-        <div style={{ marginBottom: '24px', paddingLeft: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{ width: '4px', height: '24px', background: '#E2CA3D', borderRadius: '4px' }}></div>
-          <div>
-            <h2 style={{ fontSize: '2rem', fontWeight: 800, color: '#fff', letterSpacing: '-0.5px', margin: 0, lineHeight: 1.2 }}>
-              Popular Destinations
-            </h2>
-            <p style={{ color: '#888', fontSize: '1.05rem', margin: '4px 0 0 0' }}>Get inspired by top locations chosen by other explorers.</p>
+        {/* Results or destinations */}
+        {flights && flights.length > 0 && !loading && (
+          <div style={{
+            background: 'var(--bg-card)', borderRadius: 16,
+            border: '1px solid var(--border-subtle)', padding: 28,
+            marginBottom: 32,
+          }}>
+            <FlightResults
+              flights={flights}
+              loading={false}
+              error={error}
+              searchParams={searchParams}
+              onSearchAgain={() => doSearch(searchParams)}
+            />
+            <div style={{ textAlign: 'center', marginTop: 20 }}>
+              <button onClick={() => { setFlights(null); setError('') }} className="btn-secondary btn-small">
+                <Search size={14} /> New Search
+              </button>
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* Popular Destinations Widget */}
-        <div style={{ 
-          background: 'var(--bg-card, #111)', 
-          borderRadius: '16px', 
-          border: '1px solid rgba(255,255,255,0.05)', 
-          padding: '24px', 
-          boxShadow: '0 10px 30px rgba(0,0,0,0.3)',
-          overflow: 'hidden'
-        }}>
-          <div ref={destinationsWidgetRef} style={{ width: '100%', minHeight: '200px' }}></div>
-        </div>
+        {/* Error state */}
+        {error && (!flights || flights.length === 0) && (
+          <div style={{
+            background: 'var(--bg-card)', borderRadius: 16,
+            border: '1px solid var(--border-subtle)', padding: 28,
+            marginBottom: 32, textAlign: 'center',
+          }}>
+            <p style={{ color: 'var(--text-secondary)', marginBottom: 16 }}>{error}</p>
+            <button onClick={() => { setFlights(null); setError('') }} className="btn-secondary btn-small">
+              <Search size={14} /> New Search
+            </button>
+          </div>
+        )}
+
+        {/* Popular Destinations */}
+        {!searchParams && (
+          <div style={{
+            background: 'var(--bg-card)', borderRadius: 16,
+            border: '1px solid var(--border-subtle)', padding: 28,
+          }}>
+            <PopularDestinations onSelectDestination={handleSelectDestination} />
+          </div>
+        )}
       </div>
     </div>
   )

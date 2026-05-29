@@ -46,15 +46,24 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     let cancelled = false
 
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (cancelled) return
-      if (session?.user) {
-        await hydrateUser(session.user)
-      }
-      if (!cancelled) {
-        setLoading(false)
-      }
-    })
+    supabase.auth.getSession()
+      .then(async ({ data: { session } }) => {
+        if (cancelled) return
+        try {
+          if (session?.user) {
+            await hydrateUser(session.user)
+          }
+        } catch (err) {
+          console.error('hydrateUser failed:', err)
+        }
+        if (!cancelled) {
+          setLoading(false)
+        }
+      })
+      .catch(err => {
+        console.error('getSession failed:', err)
+        if (!cancelled) setLoading(false)
+      })
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
@@ -65,12 +74,16 @@ export function AuthProvider({ children }) {
           return
         }
 
-        if (session?.user) {
-          await hydrateUser(session.user)
-        } else {
-          setUser(null)
+        try {
+          if (session?.user) {
+            await hydrateUser(session.user)
+          } else {
+            setUser(null)
+          }
+        } catch (err) {
+          console.error('auth state change handler failed:', err)
         }
-        setLoading(false)
+        if (!cancelled) setLoading(false)
       }
     )
 
@@ -98,17 +111,18 @@ export function AuthProvider({ children }) {
     return { success: !error, error }
   }
 
-  const signup = async (name, email, password) => {
+  const signup = async (name, email, password, username) => {
     const { data, error } = await supabase.auth.signUp({ 
       email, 
       password,
-      options: { data: { full_name: name } }
+      options: { data: { full_name: name, username } }
     })
     
     if (!error && data?.user) {
       const profileData = {
         id: data.user.id,
         full_name: name,
+        username: username?.toLowerCase() || null,
         avatar_url: name.charAt(0).toUpperCase(),
         joined_date: new Date().toISOString().split('T')[0]
       }
@@ -175,14 +189,13 @@ export function AuthProvider({ children }) {
   }
 
   const checkUsername = async (username) => {
-    if (!username) return false
-    const { data } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('username', username.toLowerCase())
-      .maybeSingle()
+    if (!username || username.length < 2) return false
+    const { data, error } = await supabase
+      .rpc('check_username_available', { p_username: username })
+    if (error) return false
     
-    return data && data.id !== user?.id
+    if (user?.username && username.toLowerCase() === user.username.toLowerCase()) return false
+    return !data
   }
 
   return (

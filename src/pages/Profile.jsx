@@ -1,7 +1,7 @@
 import { useAuth } from '../context/AuthContext.jsx'
 import { useData } from '../context/DataContext.jsx'
 import { Link, Navigate } from 'react-router-dom'
-import { MapPin, Globe, Shield, Star, Calendar, ArrowRight, History, X, Plus, Camera, AlertTriangle, Heart, Instagram, Youtube, Music2, Edit3, LifeBuoy, FileText, Bell, Mountain, MessageSquare, ExternalLink, Trophy, Bookmark, Trash2 } from 'lucide-react'
+import { MapPin, Globe, Shield, Star, Calendar, ArrowRight, History, X, Plus, Camera, AlertTriangle, Heart, Instagram, Youtube, Music2, Edit3, LifeBuoy, FileText, Bell, Mountain, MessageSquare, ExternalLink, Trophy, Bookmark, Trash2, Loader, Check } from 'lucide-react'
 import { useState, useRef } from 'react'
 import { supabase } from '../lib/supabase.js'
 import { compressImage } from '../lib/compressImage.js'
@@ -23,7 +23,9 @@ export default function Profile() {
     instagram: user?.socials?.instagram || '' 
   })
   const [usernameError, setUsernameError] = useState('')
+  const [usernameStatus, setUsernameStatus] = useState('idle')
   const [saving, setSaving] = useState(false)
+  const usernameTimer = useRef(null)
   const fileInputRef = useRef(null)
 
   // if (!user) return <Navigate to="/auth" /> -- handled by ProtectedRoute
@@ -521,15 +523,36 @@ export default function Profile() {
               <div className="form-group">
                 <label className="form-label">Username</label>
                 <div style={{ position: 'relative' }}>
-                  <span style={{ position: 'absolute', left: 14, top: 14, color: 'var(--text-muted)' }}>@</span>
+                  <span style={{ position: 'absolute', left: 14, top: 14, color: 'var(--text-muted)', zIndex: 1 }}>@</span>
                   <input 
                     className="form-input" 
-                    style={{ paddingLeft: 32 }}
+                    style={{ paddingLeft: 32, paddingRight: 40 }}
                     placeholder="explorer_name" 
                     value={editForm.username} 
-                    onChange={e => setEditForm({...editForm, username: e.target.value.replace(/[^a-zA-Z0-0_]/g, '')})} 
+                    onChange={e => {
+                      const val = e.target.value.replace(/[^a-zA-Z0-9_]/g, '').toLowerCase()
+                      setEditForm({...editForm, username: val})
+                      setUsernameError('')
+                      if (usernameTimer.current) clearTimeout(usernameTimer.current)
+                      if (!val || val.length < 2 || val === user.username?.toLowerCase()) {
+                        setUsernameStatus('idle')
+                        return
+                      }
+                      setUsernameStatus('checking')
+                      usernameTimer.current = setTimeout(async () => {
+                        const taken = await checkUsername(val)
+                        setUsernameStatus(taken ? 'taken' : 'available')
+                      }, 400)
+                    }} 
                   />
+                  <span style={{ position: 'absolute', right: 12, top: 13, zIndex: 1 }}>
+                    {usernameStatus === 'checking' && <Loader size={18} color="var(--text-muted)" className="spin" />}
+                    {usernameStatus === 'available' && <Check size={18} color="#4ade80" />}
+                    {usernameStatus === 'taken' && <X size={18} color="#f87171" />}
+                  </span>
                 </div>
+                {usernameStatus === 'available' && <p style={{ color: '#4ade80', fontSize: '0.75rem', marginTop: 4 }}>Username available</p>}
+                {usernameStatus === 'taken' && <p style={{ color: '#f87171', fontSize: '0.75rem', marginTop: 4 }}>Username already taken</p>}
                 {usernameError && <p style={{ color: 'var(--accent-rose)', fontSize: '0.75rem', marginTop: 4 }}>{usernameError}</p>}
               </div>
 

@@ -268,6 +268,13 @@ export default function DestinationDiscussion() {
   const [resourceTipInput, setResourceTipInput] = useState({})
   const [editingPost, setEditingPost] = useState(null)
   const [deleteConfirm, setDeleteConfirm] = useState(null)
+  const [expandedEditor, setExpandedEditor] = useState(null)
+  const [previewTip, setPreviewTip] = useState(null)
+  const [tipSearch, setTipSearch] = useState({})
+  const [tipSortOrder, setTipSortOrder] = useState({})
+  const [tipPages, setTipPages] = useState({})
+  const MAX_TIP_LEN = 2000
+  const TIPS_PER_PAGE = 5
 
   const country = destinations.find(d => d.id === id)
   const posts = discussions[id] || []
@@ -319,6 +326,8 @@ export default function DestinationDiscussion() {
     if (!tip || !user) return
     addResourceTip(id, resourceId, tip)
     setResourceTipInput(prev => ({ ...prev, [resourceId]: '' }))
+    setExpandedEditor(null)
+    setPreviewTip(null)
   }
 
   const topPosts = useMemo(() => {
@@ -340,6 +349,60 @@ export default function DestinationDiscussion() {
     }
     return counts
   }, [posts])
+
+  const wrapText = (rscId, before, after) => {
+    const el = document.getElementById(`tip-${rscId}`)
+    if (!el) return
+    const start = el.selectionStart
+    const end = el.selectionEnd
+    const val = resourceTipInput[rscId] || ''
+    const selected = val.substring(start, end) || 'text'
+    const newVal = val.substring(0, start) + before + selected + after + val.substring(end)
+    setResourceTipInput(prev => ({ ...prev, [rscId]: newVal }))
+    requestAnimationFrame(() => {
+      el.focus()
+      el.selectionStart = start + before.length
+      el.selectionEnd = start + before.length + selected.length
+    })
+  }
+
+  const insertBullet = (rscId) => {
+    const el = document.getElementById(`tip-${rscId}`)
+    if (!el) return
+    const val = resourceTipInput[rscId] || ''
+    const newVal = val + (val && !val.endsWith('\n') ? '\n' : '') + '- '
+    setResourceTipInput(prev => ({ ...prev, [rscId]: newVal }))
+    requestAnimationFrame(() => {
+      el.focus()
+      el.selectionStart = newVal.length
+      el.selectionEnd = newVal.length
+    })
+  }
+
+  const ToolbarButton = ({ label, onClick, title, style }) => (
+    <button type="button" onClick={onClick} title={title} style={{
+      fontSize: '0.72rem', fontWeight: 700, padding: '2px 7px',
+      border: '1px solid var(--border-subtle)', background: 'var(--bg-elevated)',
+      borderRadius: 'var(--radius-xs)', cursor: 'pointer', color: 'var(--text-secondary)',
+      fontFamily: 'inherit', lineHeight: 1.5, ...style
+    }}>
+      {label}
+    </button>
+  )
+
+  const TipMarkdown = ({ text }) => {
+    if (!text) return null
+    const html = text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.+?)\*/g, '<em>$1</em>')
+      .replace(/`(.+?)`/g, '<code style="background:var(--bg-secondary);padding:1px 4px;border-radius:3px;font-size:0.85em">$1</code>')
+      .replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" target="_blank" rel="noopener" style="color:var(--accent-teal)">$1</a>')
+      .replace(/\n/g, '<br>')
+    return <span dangerouslySetInnerHTML={{ __html: html }} />
+  }
 
   if (!country) return <div className="page"><div className="container">Country not found.</div></div>
 
@@ -399,47 +462,267 @@ export default function DestinationDiscussion() {
 
         {/* QUICK INFO RESOURCES */}
         {activeTab === 'discussion' && resources.length > 0 && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 12, marginBottom: 24 }}>
-            {resources.map(rsc => (
-              <div key={rsc.id} className="glass-card" style={{
-                padding: 16, borderLeft: '3px solid var(--accent-teal)',
-                transition: 'all 0.2s'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-                  <span style={{ color: 'var(--accent-teal)' }}>{RESOURCE_ICONS[rsc.icon] || <Info size={18} />}</span>
-                  <span style={{ fontWeight: 600, fontSize: '0.85rem' }}>{rsc.label}</span>
-                </div>
-                {rsc.tips.length > 0 && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 8 }}>
-                    {rsc.tips.slice(-3).map((tip, i) => (
-                      <div key={i} style={{
-                        fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.4,
-                        padding: '4px 8px', background: 'var(--bg-secondary)', borderRadius: 'var(--radius-xs)',
-                        borderLeft: '2px solid var(--accent-gold)'
-                      }}>
-                        {tip.text}
-                        <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginLeft: 6 }}>— {tip.user}</span>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 12, marginBottom: 24 }}>
+            {resources.map(rsc => {
+              const isEditorOpen = expandedEditor === rsc.id
+              const isPreviewing = previewTip === rsc.id
+              const tipText = resourceTipInput[rsc.id] || ''
+              const tipLen = tipText.length
+
+              return (
+                <div key={rsc.id} className="glass-card" style={{
+                  padding: 16, borderLeft: '3px solid var(--accent-teal)',
+                  transition: 'all 0.2s'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                    <span style={{ color: 'var(--accent-teal)' }}>{RESOURCE_ICONS[rsc.icon] || <Info size={18} />}</span>
+                    <span style={{ fontWeight: 600, fontSize: '0.85rem' }}>{rsc.label}</span>
+                    {rsc.tips.length > 0 && (
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginLeft: 'auto' }}>
+                        {rsc.tips.length} tip{rsc.tips.length !== 1 ? 's' : ''}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Tips display */}
+                  {rsc.tips.length > 0 && (
+                    <div style={{ marginBottom: 8 }}>
+                      {/* Search + Sort bar */}
+                      {rsc.tips.length > 3 && (
+                        <div style={{ display: 'flex', gap: 4, marginBottom: 6, alignItems: 'center' }}>
+                          <input
+                            placeholder="Search tips..."
+                            value={tipSearch[rsc.id] || ''}
+                            onChange={e => {
+                              setTipSearch(prev => ({ ...prev, [rsc.id]: e.target.value }))
+                              setTipPages(prev => ({ ...prev, [rsc.id]: 1 }))
+                            }}
+                            style={{
+                              flex: 1, padding: '4px 8px', fontSize: '0.7rem',
+                              border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-xs)',
+                              background: 'var(--bg-elevated)', color: 'inherit', fontFamily: 'inherit',
+                              outline: 'none', minWidth: 0
+                            }}
+                          />
+                          <div style={{ display: 'flex', gap: 2, flexShrink: 0 }}>
+                            <button
+                              onClick={() => setTipSortOrder(prev => ({ ...prev, [rsc.id]: 'newest' }))}
+                              style={{
+                                fontSize: '0.6rem', fontWeight: 600, padding: '3px 6px',
+                                border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-xs)',
+                                background: (tipSortOrder[rsc.id] || 'newest') === 'newest' ? 'var(--accent-teal-glow)' : 'var(--bg-elevated)',
+                                color: (tipSortOrder[rsc.id] || 'newest') === 'newest' ? 'var(--accent-teal)' : 'var(--text-muted)',
+                                cursor: 'pointer', fontFamily: 'inherit'
+                              }}
+                            >
+                              Newest
+                            </button>
+                            <button
+                              onClick={() => setTipSortOrder(prev => ({ ...prev, [rsc.id]: 'oldest' }))}
+                              style={{
+                                fontSize: '0.6rem', fontWeight: 600, padding: '3px 6px',
+                                border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-xs)',
+                                background: tipSortOrder[rsc.id] === 'oldest' ? 'var(--accent-teal-glow)' : 'var(--bg-elevated)',
+                                color: tipSortOrder[rsc.id] === 'oldest' ? 'var(--accent-teal)' : 'var(--text-muted)',
+                                cursor: 'pointer', fontFamily: 'inherit'
+                              }}
+                            >
+                              Oldest
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        {(() => {
+                          const q = (tipSearch[rsc.id] || '').toLowerCase()
+                          const filtered = q
+                            ? rsc.tips.filter(t => t.text.toLowerCase().includes(q) || (t.user && t.user.toLowerCase().includes(q)))
+                            : [...rsc.tips]
+                          const sorted = filtered.sort((a, b) => {
+                            return (tipSortOrder[rsc.id] || 'newest') === 'newest'
+                              ? new Date(b.timestamp) - new Date(a.timestamp)
+                              : new Date(a.timestamp) - new Date(b.timestamp)
+                          })
+                          const totalPages = Math.max(1, Math.ceil(sorted.length / TIPS_PER_PAGE))
+                          const currentPage = Math.min(tipPages[rsc.id] || 1, totalPages)
+                          const pageTips = sorted.slice((currentPage - 1) * TIPS_PER_PAGE, currentPage * TIPS_PER_PAGE)
+
+                          if (sorted.length === 0) {
+                            return (
+                              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontStyle: 'italic', padding: '4px 0' }}>
+                                No tips match your search
+                              </div>
+                            )
+                          }
+
+                          return (
+                            <>
+                              {pageTips.map((tip, i) => (
+                                <div key={i} style={{
+                                  fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.5,
+                                  padding: '6px 10px', background: 'var(--bg-secondary)', borderRadius: 'var(--radius-xs)',
+                                  borderLeft: '2px solid var(--accent-gold)', whiteSpace: 'pre-wrap', wordBreak: 'break-word'
+                                }}>
+                                  <TipMarkdown text={tip.text} />
+                                  {tip.user && (
+                                    <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', display: 'block', marginTop: 4 }}>— {tip.user}</span>
+                                  )}
+                                </div>
+                              ))}
+                              {totalPages > 1 && (
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, marginTop: 6 }}>
+                                  <button onClick={() => setTipPages(prev => ({ ...prev, [rsc.id]: currentPage - 1 }))}
+                                    disabled={currentPage <= 1}
+                                    style={{
+                                      fontSize: '0.65rem', fontWeight: 600, padding: '2px 8px',
+                                      border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-xs)',
+                                      background: 'var(--bg-elevated)',
+                                      color: currentPage <= 1 ? 'var(--text-muted)' : 'var(--text-secondary)',
+                                      cursor: currentPage <= 1 ? 'default' : 'pointer', fontFamily: 'inherit',
+                                      opacity: currentPage <= 1 ? 0.4 : 1
+                                    }}
+                                  >
+                                    Prev
+                                  </button>
+                                  {(() => {
+                                    const pages = []
+                                    const start = Math.max(1, currentPage - 1)
+                                    const end = Math.min(totalPages, start + 3)
+                                    if (start > 1) pages.push(<span key="se" style={{ fontSize: '0.65rem', color: 'var(--text-muted)', padding: '0 2px' }}>...</span>)
+                                    for (let i = start; i <= end; i++) {
+                                      pages.push(
+                                        <button key={i} onClick={() => setTipPages(prev => ({ ...prev, [rsc.id]: i }))}
+                                          style={{
+                                            fontSize: '0.65rem', fontWeight: 600, padding: '2px 8px', minWidth: 26,
+                                            border: '1px solid', borderRadius: 'var(--radius-xs)',
+                                            borderColor: currentPage === i ? 'var(--accent-teal)' : 'var(--border-subtle)',
+                                            background: currentPage === i ? 'var(--accent-teal-glow)' : 'var(--bg-elevated)',
+                                            color: currentPage === i ? 'var(--accent-teal)' : 'var(--text-secondary)',
+                                            cursor: 'pointer', fontFamily: 'inherit'
+                                          }}
+                                        >
+                                          {i}
+                                        </button>
+                                      )
+                                    }
+                                    if (end < totalPages) pages.push(<span key="ee" style={{ fontSize: '0.65rem', color: 'var(--text-muted)', padding: '0 2px' }}>...</span>)
+                                    return pages
+                                  })()}
+                                  <button onClick={() => setTipPages(prev => ({ ...prev, [rsc.id]: currentPage + 1 }))}
+                                    disabled={currentPage >= totalPages}
+                                    style={{
+                                      fontSize: '0.65rem', fontWeight: 600, padding: '2px 8px',
+                                      border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-xs)',
+                                      background: 'var(--bg-elevated)',
+                                      color: currentPage >= totalPages ? 'var(--text-muted)' : 'var(--text-secondary)',
+                                      cursor: currentPage >= totalPages ? 'default' : 'pointer', fontFamily: 'inherit',
+                                      opacity: currentPage >= totalPages ? 0.4 : 1
+                                    }}
+                                  >
+                                    Next
+                                  </button>
+                                </div>
+                              )}
+                            </>
+                          )
+                        })()}
                       </div>
-                    ))}
-                  </div>
-                )}
-                {user && (
-                  <div style={{ display: 'flex', gap: 6 }}>
-                    <input
-                      className="form-input"
-                      placeholder="Add a tip..."
-                      style={{ flex: 1, padding: '6px 10px', fontSize: '0.78rem' }}
-                      value={resourceTipInput[rsc.id] || ''}
-                      onChange={e => setResourceTipInput(prev => ({ ...prev, [rsc.id]: e.target.value }))}
-                      onKeyDown={e => { if (e.key === 'Enter') handleAddTip(rsc.id) }}
-                    />
-                    <button onClick={() => handleAddTip(rsc.id)} className="btn-primary btn-small" style={{ padding: '6px 10px', opacity: resourceTipInput[rsc.id]?.trim() ? 1 : 0.4 }} disabled={!resourceTipInput[rsc.id]?.trim()}>
-                      <Plus size={14} />
-                    </button>
-                  </div>
-                )}
-              </div>
-            ))}
+                    </div>
+                  )}
+
+                  {/* Tip editor */}
+                  {user && (
+                    <div style={{ marginTop: rsc.tips.length > 0 ? 6 : 0 }}>
+                      {!isEditorOpen ? (
+                        <button onClick={() => setExpandedEditor(rsc.id)} style={{
+                          display: 'flex', alignItems: 'center', gap: 6,
+                          fontSize: '0.75rem', color: 'var(--text-muted)',
+                          border: '1px dashed var(--border-medium)', background: 'none',
+                          cursor: 'pointer', fontFamily: 'inherit', padding: '6px 10px',
+                          borderRadius: 'var(--radius-sm)', width: '100%',
+                          transition: 'all 0.15s'
+                        }}>
+                          <Plus size={12} /> Write a tip...
+                        </button>
+                      ) : (
+                        <div>
+                          {/* Formatting toolbar */}
+                          <div style={{ display: 'flex', gap: 2, marginBottom: 6, alignItems: 'center' }}>
+                            <ToolbarButton label="B" onClick={() => wrapText(rsc.id, '**', '**')} title="Bold (Ctrl+B)" />
+                            <ToolbarButton label="I" onClick={() => wrapText(rsc.id, '*', '*')} title="Italic (Ctrl+I)" style={{ fontStyle: 'italic' }} />
+                            <ToolbarButton label="🔗" onClick={() => wrapText(rsc.id, '[', '](url)')} title="Link" />
+                            <ToolbarButton label="•" onClick={() => insertBullet(rsc.id)} title="Bullet list" />
+                            <span style={{ flex: 1 }} />
+                            <button onClick={() => setPreviewTip(isPreviewing ? null : rsc.id)} style={{
+                              fontSize: '0.7rem', fontWeight: 600,
+                              color: isPreviewing ? 'var(--accent-teal)' : 'var(--text-muted)',
+                              border: 'none', background: 'none', cursor: 'pointer', fontFamily: 'inherit',
+                              padding: '2px 6px'
+                            }}>
+                              {isPreviewing ? '✏️ Edit' : '👁️ Preview'}
+                            </button>
+                            <button onClick={() => { setExpandedEditor(null); setPreviewTip(null) }} style={{
+                              fontSize: '0.7rem', color: 'var(--text-muted)',
+                              border: 'none', background: 'none', cursor: 'pointer', fontFamily: 'inherit',
+                              padding: '2px 6px', display: 'flex'
+                            }}>
+                              <X size={14} />
+                            </button>
+                          </div>
+
+                          {/* Editor / Preview */}
+                          {isPreviewing ? (
+                            <div style={{
+                              fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.6,
+                              padding: '8px 10px', background: 'var(--bg-elevated)', borderRadius: 'var(--radius-xs)',
+                              minHeight: 60, whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+                              border: '1px solid var(--border-subtle)'
+                            }}>
+                              {tipText.trim() ? <TipMarkdown text={tipText} /> : <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>Nothing to preview yet</span>}
+                            </div>
+                          ) : (
+                            <textarea
+                              id={`tip-${rsc.id}`}
+                              className="form-input"
+                              placeholder={`Share your ${rsc.label.toLowerCase()} experience, tips, and advice...`}
+                              style={{
+                                width: '100%', minHeight: 60, padding: '8px 10px',
+                                fontSize: '0.82rem', resize: 'vertical', fontFamily: 'inherit',
+                                lineHeight: 1.5
+                              }}
+                              value={tipText}
+                              onChange={e => {
+                                if (e.target.value.length <= MAX_TIP_LEN) {
+                                  setResourceTipInput(prev => ({ ...prev, [rsc.id]: e.target.value }))
+                                }
+                              }}
+                              autoFocus
+                            />
+                          )}
+
+                          {/* Bottom bar: char count + submit */}
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 6 }}>
+                            <span style={{
+                              fontSize: '0.65rem',
+                              color: tipLen > MAX_TIP_LEN * 0.9 ? 'var(--text-danger, #ef4444)' : 'var(--text-muted)'
+                            }}>
+                              {tipLen}/{MAX_TIP_LEN}
+                            </span>
+                            <button onClick={() => handleAddTip(rsc.id)} className="btn-primary btn-small" style={{
+                              padding: '5px 14px', fontSize: '0.78rem',
+                              opacity: tipText.trim() ? 1 : 0.4,
+                              pointerEvents: tipText.trim() ? 'auto' : 'none'
+                            }}>
+                              <Plus size={12} /> Add Tip
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
           </div>
         )}
 

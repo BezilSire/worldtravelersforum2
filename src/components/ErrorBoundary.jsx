@@ -17,13 +17,28 @@ export class ErrorBoundary extends Component {
   render() {
     if (this.state.error) {
       return (
-        <div className="page" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '80px 24px' }}>
+        <div style={{
+          background: '#000', minHeight: '100vh', color: '#f5f5f7',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          textAlign: 'center', padding: '40px 24px', fontFamily: 'system-ui, sans-serif'
+        }}>
           <div>
-            <h2 style={{ marginBottom: 12 }}>Something went wrong</h2>
-            <p style={{ color: 'var(--text-secondary)', marginBottom: 24 }}>
+            <h2 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: 12, color: '#f97316' }}>
+              Something went wrong
+            </h2>
+            <p style={{ color: '#8e8e93', marginBottom: 12, fontSize: '0.95rem' }}>
               {this.props.name ? `${this.props.name} encountered an error.` : 'This section encountered an error.'}
             </p>
-            <button className="btn-primary btn-small" onClick={() => this.setState({ error: null })}>
+            <p style={{ color: '#48484a', marginBottom: 24, fontSize: '0.8rem', fontFamily: 'monospace', maxWidth: 480, margin: '0 auto 24px', wordBreak: 'break-word' }}>
+              {this.state.error?.message || 'Unknown error'}
+            </p>
+            <button onClick={() => this.setState({ error: null })} style={{
+              display: 'inline-flex', alignItems: 'center', gap: 8,
+              padding: '10px 24px', background: 'linear-gradient(135deg, #f97316, #fb923c)',
+              color: '#0a0b0f', fontWeight: 600, fontSize: '0.9rem',
+              border: 'none', borderRadius: 12, cursor: 'pointer',
+              transition: 'all 0.3s', fontFamily: 'inherit'
+            }}>
               Try Again
             </button>
           </div>

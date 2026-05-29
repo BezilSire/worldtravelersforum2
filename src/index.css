@@ -1,5 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700;800&family=Lora:ital,wght@0,400;0,600;1,400&display=swap');
-
 /* ===== World Travelers Forum — Design System ===== */
 :root {
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
@@ -259,6 +257,11 @@ textarea.form-input { resize: vertical; min-height: 100px; }
   from { opacity: 0; }
   to { opacity: 1; }
 }
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.spin { animation: spin 1s linear infinite; }
 @keyframes pulse-glow {
   0%, 100% { box-shadow: 0 0 20px rgba(249, 115, 22, 0.1); }
   50% { box-shadow: 0 0 40px rgba(249, 115, 22, 0.2); }
@@ -618,6 +621,87 @@ textarea.form-input { resize: vertical; min-height: 100px; }
   display: flex;
   flex-direction: column;
   gap: 4px;
+}
+
+.messages-list > div {
+  display: flex;
+  flex-direction: column;
+}
+
+.message-image {
+  max-width: 280px;
+  max-height: 200px;
+  border-radius: 12px;
+  cursor: pointer;
+  display: block;
+  margin-bottom: 6px;
+  transition: opacity 0.2s;
+}
+
+.message-image:hover {
+  opacity: 0.9;
+}
+
+.unread-badge {
+  background: var(--accent-gold);
+  color: #000;
+  font-size: 0.65rem;
+  font-weight: 700;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 5px;
+  flex-shrink: 0;
+}
+
+.online-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #22c55e;
+  border: 2px solid var(--bg-card);
+  position: absolute;
+  bottom: -1px;
+  right: -1px;
+}
+
+.offline-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  border: 2px solid var(--bg-card);
+  position: absolute;
+  bottom: -1px;
+  right: -1px;
+}
+
+.avatar-wrapper {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.image-lightbox {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.85);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  animation: fadeIn 0.2s ease;
+}
+
+.image-lightbox img {
+  max-width: 90vw;
+  max-height: 90vh;
+  border-radius: 8px;
+  object-fit: contain;
 }
 
 .messages-empty-chat {
@@ -1105,5 +1189,10 @@ textarea.form-input { resize: vertical; min-height: 100px; }
 .sidebar-logout:hover {
   color: var(--accent-gold);
   background: rgba(255, 255, 255, 0.05);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 

@@ -1,19 +1,22 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate, Navigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
-import { Globe, ArrowRight, Key, Shield, Lock } from 'lucide-react'
+import { Globe, ArrowRight, Key, Shield, Lock, Check, X, Loader } from 'lucide-react'
 
 export default function Auth() {
   const [mode, setMode] = useState('login')
   const [name, setName] = useState('')
+  const [username, setUsername] = useState('')
+  const [usernameStatus, setUsernameStatus] = useState('idle')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [error, setError] = useState('')
   const [msg, setMsg] = useState('')
   const [loading, setLoading] = useState(false)
+  const usernameTimer = useRef(null)
   
-  const { user, loading: authLoading, login, signup, loginWithGoogle, sendResetEmail, resetPassword, passwordRecovery } = useAuth()
+  const { user, loading: authLoading, login, signup, checkUsername, loginWithGoogle, sendResetEmail, resetPassword, passwordRecovery } = useAuth()
   const navigate = useNavigate()
 
   const redirecting = !authLoading && user && !passwordRecovery
@@ -29,6 +32,24 @@ export default function Auth() {
     }
   }, [passwordRecovery])
 
+  const handleUsernameChange = (value) => {
+    const cleaned = value.replace(/[^a-zA-Z0-9_]/g, '').toLowerCase()
+    setUsername(cleaned)
+    
+    if (usernameTimer.current) clearTimeout(usernameTimer.current)
+    
+    if (!cleaned || cleaned.length < 2) {
+      setUsernameStatus('idle')
+      return
+    }
+    
+    setUsernameStatus('checking')
+    usernameTimer.current = setTimeout(async () => {
+      const taken = await checkUsername(cleaned)
+      setUsernameStatus(taken ? 'taken' : 'available')
+    }, 400)
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
@@ -38,7 +59,8 @@ export default function Auth() {
     try {
       if (mode === 'signup') {
         if (!name || !email || !password) throw new Error('All fields required')
-        const res = await signup(name, email, password)
+        if (username && usernameStatus === 'taken') throw new Error('That username is already taken')
+        const res = await signup(name, email, password, username || null)
         if (res.success) {
           if (res.data?.user?.email_confirmed_at) {
             navigate('/profile')
@@ -99,10 +121,32 @@ export default function Auth() {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
         {mode === 'signup' && (
-          <div className="form-group">
-            <label className="form-label">Full Name</label>
-            <input className="form-input" type="text" placeholder="Your name" value={name} onChange={e => setName(e.target.value)} required />
-          </div>
+          <>
+            <div className="form-group">
+              <label className="form-label">Full Name</label>
+              <input className="form-input" type="text" placeholder="Your name" value={name} onChange={e => setName(e.target.value)} required />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Username</label>
+              <div style={{ position: 'relative' }}>
+                <span style={{ position: 'absolute', left: 14, top: 14, color: 'var(--text-muted)', zIndex: 1 }}>@</span>
+                <input
+                  className="form-input"
+                  style={{ paddingLeft: 32, paddingRight: 40 }}
+                  placeholder="explorer_name"
+                  value={username}
+                  onChange={e => handleUsernameChange(e.target.value)}
+                />
+                <span style={{ position: 'absolute', right: 12, top: 13, zIndex: 1 }}>
+                  {usernameStatus === 'checking' && <Loader size={18} color="var(--text-muted)" className="spin" />}
+                  {usernameStatus === 'available' && <Check size={18} color="#4ade80" />}
+                  {usernameStatus === 'taken' && <X size={18} color="#f87171" />}
+                </span>
+              </div>
+              {usernameStatus === 'available' && <p style={{ color: '#4ade80', fontSize: '0.75rem', marginTop: 4 }}>Username available</p>}
+              {usernameStatus === 'taken' && <p style={{ color: '#f87171', fontSize: '0.75rem', marginTop: 4 }}>Username already taken</p>}
+            </div>
+          </>
         )}
         <div className="form-group">
           <label className="form-label">Email Address</label>
