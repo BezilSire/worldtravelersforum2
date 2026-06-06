@@ -1,40 +1,26 @@
-import { useState, useCallback } from 'react'
-import { Search } from 'lucide-react'
-import FlightSearchForm from '../components/FlightSearchForm.jsx'
-import FlightResults from '../components/FlightResults.jsx'
-import PopularDestinations from '../components/PopularDestinations.jsx'
-import { searchCheapTickets } from '../lib/travelpayouts.js'
-import { getAirport } from '../data/airports.js'
+import { useEffect, useRef } from 'react'
 
 export default function Bookings() {
-  const [flights, setFlights] = useState(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-  const [searchParams, setSearchParams] = useState(null)
+  const flightWidgetRef = useRef(null)
+  const destinationsWidgetRef = useRef(null)
 
-  const doSearch = useCallback(async (params) => {
-    setLoading(true)
-    setError('')
-    setSearchParams(params)
-    try {
-      const results = await searchCheapTickets(params)
-      setFlights(results)
-      if (results.length === 0) {
-        setError('No flights found for this route. Try different dates.')
-      }
-    } catch (err) {
-      setError(err.message || 'Search failed. Please try again.')
-      setFlights([])
-    } finally {
-      setLoading(false)
+  useEffect(() => {
+    if (flightWidgetRef.current && flightWidgetRef.current.children.length === 0) {
+      const script = document.createElement('script')
+      script.src = "https://tpwdgt.com/content?currency=usd&campaign_id=100&promo_id=7879&plain=true&no_labels=&border_radius=0&color_focused=%23E5F694ff&special=%23C4C4C4&secondary=%23FFFFFF&light=%23FFFFFF&dark=%23262626&color_icons=%23E8F28Cff&color_button=%23E2CA3Dff&primary_override=%23E2CA39ff&searchUrl=www.aviasales.com%2Fsearch&locale=en&powered_by=true&show_hotels=false&shmarker=728203&trs=528643"
+      script.async = true
+      script.charset = "utf-8"
+      flightWidgetRef.current.appendChild(script)
+    }
+
+    if (destinationsWidgetRef.current && destinationsWidgetRef.current.children.length === 0) {
+      const script2 = document.createElement('script')
+      script2.src = "https://tpwdgt.com/content?currency=usd&campaign_id=100&promo_id=4044&primary=%23B4830Dff&powered_by=true&limit=7&locale=en&target_host=www.aviasales.com%2Fsearch&shmarker=728203&trs=528643"
+      script2.async = true
+      script2.charset = "utf-8"
+      destinationsWidgetRef.current.appendChild(script2)
     }
   }, [])
-
-  const handleSelectDestination = (code, city) => {
-    doSearch({ origin: 'JFK', destination: code })
-  }
-
-  const showSearch = !flights || flights.length === 0 || error
 
   return (
     <div style={{
@@ -74,82 +60,46 @@ export default function Bookings() {
             textTransform: 'uppercase', marginBottom: '0.75rem',
             letterSpacing: '-1.5px', lineHeight: 1.05,
           }}>
-            {searchParams ? (
-              <>
-                <span style={{ color: 'var(--accent-gold)' }}>{getAirport(searchParams.origin)?.city || searchParams.origin}</span>
-                <span style={{ color: 'var(--text-muted)', margin: '0 16px', fontSize: '0.7em' }}>→</span>
-                <span style={{ color: '#fff' }}>{getAirport(searchParams.destination)?.city || searchParams.destination}</span>
-              </>
-            ) : (
-              <>
-                Book Your Next <br />
-                <span style={{ background: 'linear-gradient(to right, var(--accent-gold), #fff)', WebkitBackgroundClip: 'text', color: 'transparent' }}>Flight</span>
-              </>
-            )}
+            Book Your Next <br />
+            <span style={{ background: 'linear-gradient(to right, var(--accent-gold), #fff)', WebkitBackgroundClip: 'text', color: 'transparent' }}>Flight</span>
           </h1>
           <p style={{ color: 'rgba(255,255,255,0.85)', fontSize: '1.1rem', maxWidth: 500, margin: '0 auto', fontWeight: 400 }}>
-            {searchParams ? `${flights?.length || 0} flights found` : 'Find the best flight deals for your upcoming missions.'}
+            Find the best flight deals for your upcoming missions.
           </p>
         </div>
       </div>
 
-      {/* Content */}
-      <div style={{ maxWidth: 900, margin: '-60px auto 0', padding: '0 20px', position: 'relative', zIndex: 10 }}>
-        {/* Search form */}
+      {/* Widgets */}
+      <div style={{ maxWidth: 1000, margin: '-60px auto 0', padding: '0 20px', position: 'relative', zIndex: 10 }}>
+        {/* Flight Search Widget */}
         <div style={{
           background: 'var(--bg-card)', borderRadius: 16,
           border: '1px solid var(--border-subtle)', padding: 28,
           boxShadow: '0 25px 50px -12px rgba(0,0,0,0.7)',
-          marginBottom: 32,
+          marginBottom: 60,
         }}>
-          <FlightSearchForm onSearch={doSearch} loading={loading} />
+          <div ref={flightWidgetRef} style={{ width: '100%', minHeight: 150 }}></div>
         </div>
 
-        {/* Results or destinations */}
-        {flights && flights.length > 0 && !loading && (
-          <div style={{
-            background: 'var(--bg-card)', borderRadius: 16,
-            border: '1px solid var(--border-subtle)', padding: 28,
-            marginBottom: 32,
-          }}>
-            <FlightResults
-              flights={flights}
-              loading={false}
-              error={error}
-              searchParams={searchParams}
-              onSearchAgain={() => doSearch(searchParams)}
-            />
-            <div style={{ textAlign: 'center', marginTop: 20 }}>
-              <button onClick={() => { setFlights(null); setError('') }} className="btn-secondary btn-small">
-                <Search size={14} /> New Search
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Error state */}
-        {error && (!flights || flights.length === 0) && (
-          <div style={{
-            background: 'var(--bg-card)', borderRadius: 16,
-            border: '1px solid var(--border-subtle)', padding: 28,
-            marginBottom: 32, textAlign: 'center',
-          }}>
-            <p style={{ color: 'var(--text-secondary)', marginBottom: 16 }}>{error}</p>
-            <button onClick={() => { setFlights(null); setError('') }} className="btn-secondary btn-small">
-              <Search size={14} /> New Search
-            </button>
-          </div>
-        )}
-
         {/* Popular Destinations */}
-        {!searchParams && (
-          <div style={{
-            background: 'var(--bg-card)', borderRadius: 16,
-            border: '1px solid var(--border-subtle)', padding: 28,
-          }}>
-            <PopularDestinations onSelectDestination={handleSelectDestination} />
+        <div style={{ marginBottom: 24, paddingLeft: 8, display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ width: 4, height: 24, background: 'var(--accent-gold)', borderRadius: 4 }}></div>
+          <div>
+            <h2 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#fff', letterSpacing: '-0.5px', margin: 0, lineHeight: 1.2 }}>
+              Popular Destinations
+            </h2>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '1rem', margin: '4px 0 0 0' }}>
+              Get inspired by top locations chosen by other explorers.
+            </p>
           </div>
-        )}
+        </div>
+        <div style={{
+          background: 'var(--bg-card)', borderRadius: 16,
+          border: '1px solid var(--border-subtle)', padding: 28,
+          overflow: 'hidden',
+        }}>
+          <div ref={destinationsWidgetRef} style={{ width: '100%', minHeight: 200 }}></div>
+        </div>
       </div>
     </div>
   )
