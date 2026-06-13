@@ -7,7 +7,7 @@ import { useFeedQuery, useCreatePost, useLikePost, useDeletePost, useRepostPost,
 import { useUIStore } from '../stores/uiStore.js'
 import { checkRateLimit } from '../lib/rateLimit.js'
 
-const DataContext = createContext(null)
+const DataContext = createContext({})
 
 const ADMIN_EMAIL = 'bezilsire00@gmail.com'
 

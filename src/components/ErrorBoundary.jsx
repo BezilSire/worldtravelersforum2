@@ -32,7 +32,7 @@ export class ErrorBoundary extends Component {
             <p style={{ color: '#48484a', marginBottom: 24, fontSize: '0.8rem', fontFamily: 'monospace', maxWidth: 480, margin: '0 auto 24px', wordBreak: 'break-word' }}>
               {this.state.error?.message || 'Unknown error'}
             </p>
-            <button onClick={() => this.setState({ error: null })} style={{
+            <button onClick={() => this.props.name === 'Root' ? window.location.reload() : this.setState({ error: null })} style={{
               display: 'inline-flex', alignItems: 'center', gap: 8,
               padding: '10px 24px', background: 'linear-gradient(135deg, #f97316, #fb923c)',
               color: '#0a0b0f', fontWeight: 600, fontSize: '0.9rem',

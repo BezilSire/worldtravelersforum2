@@ -27,17 +27,17 @@ export default function App() {
   if (loading) {
     return (
       <div style={{
-        background: 'var(--bg-card)',
+        background: '#0a0b0f',
         minHeight: '100vh',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         flexDirection: 'column', gap: 20
       }}>
         <div className="spin" style={{
           width: 48, height: 48, borderRadius: '50%',
-          border: '3px solid var(--border-subtle)',
-          borderTopColor: 'var(--accent-gold)'
+          border: '3px solid rgba(255,255,255,0.1)',
+          borderTopColor: '#f97316'
         }} />
-        <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Loading...</span>
+        <span style={{ color: '#8e8e93', fontSize: '0.9rem', fontWeight: 500 }}>Loading...</span>
       </div>
     )
   }

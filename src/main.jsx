@@ -36,11 +36,13 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <AuthProvider>
-          <DataProvider>
-            <App />
-          </DataProvider>
-        </AuthProvider>
+        <ErrorBoundary name="Root">
+          <AuthProvider>
+            <DataProvider>
+              <App />
+            </DataProvider>
+          </AuthProvider>
+        </ErrorBoundary>
       </BrowserRouter>
     </QueryClientProvider>
   </React.StrictMode>
